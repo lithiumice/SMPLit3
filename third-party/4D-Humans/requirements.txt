@@ -1,0 +1,13 @@
+pytorch-lightning==1.8
+# https://lightning.ai/docs/pytorch/latest/versioning.html#pytorch-support
+# smplx==0.1.28
+pyrender
+opencv-python
+yacs
+scikit-image
+einops
+timm
+dill
+chumpy
+pandas
+# git+https://github.com/facebookresearch/detectron2

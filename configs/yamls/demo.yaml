@@ -1,0 +1,15 @@
+LOGDIR: ''
+DEVICE: 'cuda'
+EXP_NAME: 'demo'
+OUTPUT_DIR: 'experiments/'
+NUM_WORKERS: 0
+MODEL_CONFIG: 'configs/yamls/model_base.yaml'
+
+TRAIN:
+  STAGE: 'stage2'
+  CHECKPOINT: 'model_files/wham_ckpt/wham_vit_bedlam_w_3dpw.pth.tar'
+  # CHECKPOINT: '/apdcephfs/private_wallyliang/WHAM_new/experiments/train_stage1/model_best.pth.tar'
+  # CHECKPOINT: '/apdcephfs/private_wallyliang/WHAM_new/experiments/train_stage2/model_best.pth.tar'
+
+MODEL:
+  BACKBONE: 'vit'

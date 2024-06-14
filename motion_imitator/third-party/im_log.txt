@@ -1,0 +1,13 @@
+7653	T_play 3.30	T_update 4.82	ETA 5:17:47	step_rewards 0.8324 [0.8853,0.5640,0.9448,0.5582]	eps_len 32.00	alive 0.97	fps step 79355.0	fps total 32253.0	amass_im
+7654	T_play 3.33	T_update 4.83	ETA 5:19:00	step_rewards 0.8325 [0.8855,0.5644,0.9446,0.5585]	eps_len 32.00	alive 0.98	fps step 78786.0	fps total 32118.0	amass_im
+7655	T_play 3.29	T_update 4.83	ETA 5:17:14	step_rewards 0.8331 [0.8862,0.5645,0.9457,0.5585]	eps_len 32.00	alive 0.98	fps step 79747.0	fps total 32282.0	amass_im
+7656	T_play 3.30	T_update 4.83	ETA 5:17:50	step_rewards 0.8328 [0.8857,0.5647,0.9450,0.5591]	eps_len 32.00	alive 0.98	fps step 79330.0	fps total 32208.0	amass_im
+7657	T_play 3.30	T_update 4.82	ETA 5:16:44	step_rewards 0.8328 [0.8862,0.5636,0.9447,0.5579]	eps_len 32.00	alive 0.97	fps step 79479.0	fps total 32306.0	amass_im
+7658	T_play 3.31	T_update 4.84	ETA 5:17:40	step_rewards 0.8330 [0.8860,0.5643,0.9455,0.5582]	eps_len 32.00	alive 0.97	fps step 79310.0	fps total 32197.0	amass_im
+7659	T_play 3.29	T_update 4.87	ETA 5:18:12	step_rewards 0.8330 [0.8859,0.5649,0.9456,0.5589]	eps_len 32.00	alive 0.97	fps step 79694.0	fps total 32129.0	amass_im
+7660	T_play 3.29	T_update 4.88	ETA 5:18:30	step_rewards 0.8330 [0.8860,0.5644,0.9456,0.5579]	eps_len 32.00	alive 0.98	fps step 79603.0	fps total 32085.0	amass_im
+7661	T_play 3.30	T_update 4.87	ETA 5:18:11	step_rewards 0.8333 [0.8861,0.5647,0.9463,0.5592]	eps_len 32.00	alive 0.98	fps step 79439.0	fps total 32103.0	amass_im
+7662	T_play 3.30	T_update 4.86	ETA 5:18:09	step_rewards 0.8330 [0.8862,0.5645,0.9450,0.5581]	eps_len 32.00	alive 0.98	fps step 79327.0	fps total 32093.0	amass_im
+7663	T_play 3.31	T_update 4.86	ETA 5:18:08	step_rewards 0.8325 [0.8857,0.5643,0.9449,0.5573]	eps_len 32.00	alive 0.98	fps step 79194.0	fps total 32082.0	amass_im
+7664	T_play 3.30	T_update 4.87	ETA 5:18:09	step_rewards 0.8331 [0.8861,0.5645,0.9460,0.5578]	eps_len 32.00	alive 0.98	fps step 79335.0	fps total 32066.0	amass_im
+7665	T_play 3.32	T_update 4.98	ETA 5:22:45	step_rewards 0.8323 [0.8853,0.5648,0.9447,0.5574]	eps_len 32.00	alive 0.98	fps step 79030.0	fps total 31595.0	amass_im

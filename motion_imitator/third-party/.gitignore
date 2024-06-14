@@ -1,0 +1,11 @@
+*.pyc
+*.pth
+.vs/
+__pycache__/
+data
+results
+out
+
+pretrained_adaptnet
+pretrained_composite
+

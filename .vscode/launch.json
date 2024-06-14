@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "debug wham",
+      "type": "python",
+      "request": "launch",
+      "program": "demo_debug.py",
+      "console": "integratedTerminal",
+      "cwd": "/apdcephfs/private_wallyliang/PLANT/Thirdparty/WHAM",
+      "justMyCode": false,
+      "args": [
+          "--video","/apdcephfs/private_wallyliang/putin_walk/clip0001_dynamic000.mp4",
+          "--output_pth", "/apdcephfs/private_wallyliang/wham_private_output",
+          "--visualize","--save_pkl"           
+      ] 
+    },           
+
+  ]
+}

@@ -1,0 +1,11 @@
+dataset_dir: /apdcephfs/share_1330077/wallyliang/hmp_saves/ReInterhand_R/train
+raw_data_root: /apdcephfs/share_1330077/wallyliang/ReInterhand
+data:
+    fps: 30
+    clip_length: 128
+
+canonical: False
+unified_orientation: True
+single_motion: False
+normalize: False
+hand_type: R
