@@ -10,6 +10,7 @@ import joblib
 
 TEMPLATE_FILE = "embodied_pose/data/assets/mjcf/humanoid_template_local.xml"
 
+
 class Bone:
     def __init__(self):
         # original bone info
@@ -89,7 +90,7 @@ class Skeleton:
             bone = Bone()
             bone.id = i + 1
             bone.name = joint
-            
+
             bone.channels = (
                 spec_channels[joint] if joint in spec_channels.keys() else channels
             )
@@ -97,7 +98,6 @@ class Skeleton:
             bone.offset = np.array(offsets[joint]) * self.len_scale
             bone.lb = np.rad2deg(jrange[joint][:, 0])
             bone.ub = np.rad2deg(jrange[joint][:, 1])
-
 
             self.bones.append(bone)
             self.name2bone[joint] = bone
@@ -239,10 +239,10 @@ class Skeleton:
                     )
                 else:
                     g_attr["type"] = "capsule"
-                    g_attr[
-                        "fromto"
-                    ] = "{0:.4f} {1:.4f} {2:.4f} {3:.4f} {4:.4f} {5:.4f}".format(
-                        *np.concatenate([e1, e2])
+                    g_attr["fromto"] = (
+                        "{0:.4f} {1:.4f} {2:.4f} {3:.4f} {4:.4f} {5:.4f}".format(
+                            *np.concatenate([e1, e2])
+                        )
                     )
 
                 g_attr["contype"] = "1"
@@ -261,11 +261,9 @@ class Skeleton:
             e2 = bone.end.copy() + offset
             # template_attributes["start"]
             if g_attr["type"] == "capsule":
-                g_attr[
-                    "fromto"
-                ] = "{0:.4f} {1:.4f} {2:.4f} {3:.4f} {4:.4f} {5:.4f}".format(
-                    *np.concatenate(
-                        [e1, e2]
+                g_attr["fromto"] = (
+                    "{0:.4f} {1:.4f} {2:.4f} {3:.4f} {4:.4f} {5:.4f}".format(
+                        *np.concatenate([e1, e2])
                     )
                 )
                 g_attr["size"] = "{0:.4f}".format(*template_attributes["size"])
@@ -277,7 +275,6 @@ class Skeleton:
                 pos = (e1 + e2) / 2
                 if bone.name == "L_Toe" or bone.name == "R_Toe":
                     pos[1] += 0.05
-                
 
                 g_attr["pos"] = "{0:.4f} {1:.4f} {2:.4f}".format(*pos)
 
@@ -289,11 +286,8 @@ class Skeleton:
                 )
             elif g_attr["type"] == "sphere":
                 g_attr["size"] = "{0:.4f}".format(*template_attributes["size"])
-                g_attr["pos"] = "{0:.4f} {1:.4f} {2:.4f}".format(
-                    *np.zeros(3)
-                )
+                g_attr["pos"] = "{0:.4f} {1:.4f} {2:.4f}".format(*np.zeros(3))
         SubElement(node, "geom", g_attr)
-
 
         # write child bones
         for bone_c in bone.child:

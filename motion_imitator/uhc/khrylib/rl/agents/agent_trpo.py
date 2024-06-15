@@ -24,10 +24,12 @@ def conjugate_gradients(Avp_f, b, nsteps, rdotr_tol=1e-10):
     return x
 
 
-def line_search(model, f, x, fullstep, expected_improve_full, max_backtracks=10, accept_ratio=0.1):
+def line_search(
+    model, f, x, fullstep, expected_improve_full, max_backtracks=10, accept_ratio=0.1
+):
     fval = f(True).item()
 
-    for stepfrac in [.5**x for x in range(max_backtracks)]:
+    for stepfrac in [0.5**x for x in range(max_backtracks)]:
         x_new = x + stepfrac * fullstep
         set_flat_params_to(model, x_new)
         fval_new = f(True).item()
@@ -62,11 +64,16 @@ class AgentTRPO(AgentPG):
             for param in self.value_net.parameters():
                 value_loss += param.pow(2).sum() * 1e-3
             value_loss.backward()
-            return value_loss.item(), get_flat_grad_from(self.value_net.parameters()).cpu().numpy()
+            return (
+                value_loss.item(),
+                get_flat_grad_from(self.value_net.parameters()).cpu().numpy(),
+            )
 
-        flat_params, _, opt_info = scipy.optimize.fmin_l_bfgs_b(get_value_loss,
-                                                                get_flat_params_from(self.value_net).detach().cpu().numpy(),
-                                                                maxiter=25)
+        flat_params, _, opt_info = scipy.optimize.fmin_l_bfgs_b(
+            get_value_loss,
+            get_flat_params_from(self.value_net).detach().cpu().numpy(),
+            maxiter=25,
+        )
         set_flat_params_to(self.value_net, tensor(flat_params))
 
     def update_policy(self, states, actions, returns, advantages, exps):
@@ -75,12 +82,16 @@ class AgentTRPO(AgentPG):
         self.update_value(states, returns)
 
         with torch.no_grad():
-            fixed_log_probs = self.policy_net.get_log_prob(self.trans_policy(states)[ind], actions[ind])
+            fixed_log_probs = self.policy_net.get_log_prob(
+                self.trans_policy(states)[ind], actions[ind]
+            )
         """define the loss function for TRPO"""
 
         def get_loss(volatile=False):
             with torch.set_grad_enabled(not volatile):
-                log_probs = self.policy_net.get_log_prob(self.trans_policy(states[ind]), actions[ind])
+                log_probs = self.policy_net.get_log_prob(
+                    self.trans_policy(states[ind]), actions[ind]
+                )
                 action_loss = -advantages[ind] * torch.exp(log_probs - fixed_log_probs)
                 return action_loss.mean()
 
@@ -89,20 +100,31 @@ class AgentTRPO(AgentPG):
         def Fvp_fim(v):
             M, mu, info = self.policy_net.get_fim(self.trans_policy(states)[ind])
             mu = mu.view(-1)
-            filter_input_ids = set([info['std_id']]) if self.policy_net.type == 'gaussian' else set()
+            filter_input_ids = (
+                set([info["std_id"]]) if self.policy_net.type == "gaussian" else set()
+            )
 
             t = ones(mu.size(), requires_grad=True)
             mu_t = (mu * t).sum()
-            Jt = compute_flat_grad(mu_t, self.policy_net.parameters(), filter_input_ids=filter_input_ids, create_graph=True)
+            Jt = compute_flat_grad(
+                mu_t,
+                self.policy_net.parameters(),
+                filter_input_ids=filter_input_ids,
+                create_graph=True,
+            )
             Jtv = (Jt * v).sum()
             Jv = torch.autograd.grad(Jtv, t)[0]
             MJv = M * Jv.detach()
             mu_MJv = (MJv * mu).sum()
-            JTMJv = compute_flat_grad(mu_MJv, self.policy_net.parameters(), filter_input_ids=filter_input_ids).detach()
+            JTMJv = compute_flat_grad(
+                mu_MJv, self.policy_net.parameters(), filter_input_ids=filter_input_ids
+            ).detach()
             JTMJv /= states.shape[0]
-            if self.policy_net.type == 'gaussian':
-                std_index = info['std_index']
-                JTMJv[std_index: std_index + M.shape[0]] += 2 * v[std_index: std_index + M.shape[0]]
+            if self.policy_net.type == "gaussian":
+                std_index = info["std_index"]
+                JTMJv[std_index : std_index + M.shape[0]] += (
+                    2 * v[std_index : std_index + M.shape[0]]
+                )
             return JTMJv + v * self.damping
 
         """directly compute Hessian*vector from KL"""
@@ -111,12 +133,16 @@ class AgentTRPO(AgentPG):
             kl = self.policy_net.get_kl(self.trans_policy(states)[ind])
             kl = kl.mean()
 
-            grads = torch.autograd.grad(kl, self.policy_net.parameters(), create_graph=True)
+            grads = torch.autograd.grad(
+                kl, self.policy_net.parameters(), create_graph=True
+            )
             flat_grad_kl = torch.cat([grad.view(-1) for grad in grads])
 
             kl_v = (flat_grad_kl * v).sum()
             grads = torch.autograd.grad(kl_v, self.policy_net.parameters())
-            flat_grad_grad_kl = torch.cat([grad.contiguous().view(-1) for grad in grads]).detach()
+            flat_grad_grad_kl = torch.cat(
+                [grad.contiguous().view(-1) for grad in grads]
+            ).detach()
 
             return flat_grad_grad_kl + v * self.damping
 
@@ -133,5 +159,7 @@ class AgentTRPO(AgentPG):
         expected_improve = -loss_grad.dot(fullstep)
 
         prev_params = get_flat_params_from(self.policy_net)
-        success, new_params = line_search(self.policy_net, get_loss, prev_params, fullstep, expected_improve)
+        success, new_params = line_search(
+            self.policy_net, get_loss, prev_params, fullstep, expected_improve
+        )
         set_flat_params_to(self.policy_net, new_params)

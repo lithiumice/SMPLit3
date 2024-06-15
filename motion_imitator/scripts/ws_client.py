@@ -7,20 +7,20 @@ import numpy as np
 
 import subprocess
 
-HOST = os.getenv('HOST', '172.29.229.220')
+HOST = os.getenv("HOST", "172.29.229.220")
 # HOST = os.getenv('HOST', '0.0.0.0')
 # HOST = os.getenv('HOST', 'KLAB-BUTTER.PC.CS.CMU.EDU')
-PORT = int(os.getenv('PORT', 8080))
+PORT = int(os.getenv("PORT", 8080))
 
 
 async def main():
     session = aiohttp.ClientSession()
-    URL = f'http://{HOST}:{PORT}/ws_talk'
+    URL = f"http://{HOST}:{PORT}/ws_talk"
     async with session.ws_connect(URL) as ws:
 
         await prompt_and_send(ws)
         async for msg in ws:
-            print('Message received from server:', msg.data)
+            print("Message received from server:", msg.data)
             await prompt_and_send(ws)
             if msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                 break
@@ -48,9 +48,9 @@ async def main():
 
 
 async def prompt_and_send(ws):
-    new_msg_to_send = input('Type a message to send to the server: ')
-    if new_msg_to_send == 'exit':
-        print('Exiting!')
+    new_msg_to_send = input("Type a message to send to the server: ")
+    if new_msg_to_send == "exit":
+        print("Exiting!")
         raise SystemExit(0)
     elif new_msg_to_send == "s":
         # subprocess.Popen(["simplescreenrecorder", "--start-recording"])
@@ -62,7 +62,7 @@ async def prompt_and_send(ws):
     return new_msg_to_send
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print('Type "exit" to quit')
     # loop = asyncio.get_event_loop()
     # loop.run_forever(main())

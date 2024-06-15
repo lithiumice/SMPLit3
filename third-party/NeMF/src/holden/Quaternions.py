@@ -33,10 +33,17 @@ class Quaternions:
             self.qs = qs.qs
             return
 
-        raise TypeError('Quaternions must be constructed from iterable, numpy array, or Quaternions, not %s' % type(qs))
+        raise TypeError(
+            "Quaternions must be constructed from iterable, numpy array, or Quaternions, not %s"
+            % type(qs)
+        )
 
-    def __str__(self): return "Quaternions(" + str(self.qs) + ")"
-    def __repr__(self): return "Quaternions(" + repr(self.qs) + ")"
+    def __str__(self):
+        return "Quaternions(" + str(self.qs) + ")"
+
+    def __repr__(self):
+        return "Quaternions(" + repr(self.qs) + ")"
+
     """ Helper Methods for Broadcasting and Data extraction """
 
     @classmethod
@@ -48,13 +55,19 @@ class Quaternions:
         os = np.array(oqs.shape)
 
         if len(ss) != len(os):
-            raise TypeError('Quaternions cannot broadcast together shapes %s and %s' % (sqs.shape, oqs.shape))
+            raise TypeError(
+                "Quaternions cannot broadcast together shapes %s and %s"
+                % (sqs.shape, oqs.shape)
+            )
 
         if np.all(ss == os):
             return sqs, oqs
 
         if not np.all((ss == os) | (os == np.ones(len(os))) | (ss == np.ones(len(ss)))):
-            raise TypeError('Quaternions cannot broadcast together shapes %s and %s' % (sqs.shape, oqs.shape))
+            raise TypeError(
+                "Quaternions cannot broadcast together shapes %s and %s"
+                % (sqs.shape, oqs.shape)
+            )
 
         sqsn, oqsn = sqs.copy(), oqs.copy()
 
@@ -67,8 +80,12 @@ class Quaternions:
 
     """ Adding Quaterions is just Defined as Multiplication """
 
-    def __add__(self, other): return self * other
-    def __sub__(self, other): return self / other
+    def __add__(self, other):
+        return self * other
+
+    def __sub__(self, other):
+        return self / other
+
     """ Quaterion Multiplication """
 
     def __mul__(self, other):
@@ -80,7 +97,7 @@ class Quaternions:
 
         When multiplying a Quaternions array by a vector
         array of the same shape, where the last axis is 3,
-        it is assumed to be a Quaternion by 3D-Vector 
+        it is assumed to be a Quaternion by 3D-Vector
         multiplication and the 3D-Vectors are rotated
         in space by the Quaternions.
 
@@ -114,7 +131,9 @@ class Quaternions:
 
         """ If array type do Quaternions * Vectors """
         if isinstance(other, np.ndarray) and other.shape[-1] == 3:
-            vs = Quaternions(np.concatenate([np.zeros(other.shape[:-1] + (1,)), other], axis=-1))
+            vs = Quaternions(
+                np.concatenate([np.zeros(other.shape[:-1] + (1,)), other], axis=-1)
+            )
 
             return (self * (vs * -self)).imaginaries
 
@@ -122,7 +141,9 @@ class Quaternions:
         if isinstance(other, np.ndarray) or isinstance(other, float):
             return Quaternions.slerp(Quaternions.id_like(self), self, other)
 
-        raise TypeError('Cannot multiply/add Quaternions with type %s' % str(type(other)))
+        raise TypeError(
+            "Cannot multiply/add Quaternions with type %s" % str(type(other))
+        )
 
     def __div__(self, other):
         """
@@ -140,32 +161,43 @@ class Quaternions:
             return self * (1.0 / other)
         if isinstance(other, float):
             return self * (1.0 / other)
-        raise TypeError('Cannot divide/subtract Quaternions with type %s' + str(type(other)))
+        raise TypeError(
+            "Cannot divide/subtract Quaternions with type %s" + str(type(other))
+        )
 
-    def __eq__(self, other): return self.qs == other.qs
-    def __ne__(self, other): return self.qs != other.qs
+    def __eq__(self, other):
+        return self.qs == other.qs
+
+    def __ne__(self, other):
+        return self.qs != other.qs
 
     def __neg__(self):
-        """ Invert Quaternions """
+        """Invert Quaternions"""
         return Quaternions(self.qs * np.array([[1, -1, -1, -1]]))
 
     def __abs__(self):
-        """ Unify Quaternions To Single Pole """
+        """Unify Quaternions To Single Pole"""
         qabs = self.normalized().copy()
         top = np.sum((qabs.qs) * np.array([1, 0, 0, 0]), axis=-1)
         bot = np.sum((-qabs.qs) * np.array([1, 0, 0, 0]), axis=-1)
         qabs.qs[top < bot] = -qabs.qs[top < bot]
         return qabs
 
-    def __iter__(self): return iter(self.qs)
-    def __len__(self): return len(self.qs)
+    def __iter__(self):
+        return iter(self.qs)
 
-    def __getitem__(self, k): return Quaternions(self.qs[k])
-    def __setitem__(self, k, v): self.qs[k] = v.qs
+    def __len__(self):
+        return len(self.qs)
+
+    def __getitem__(self, k):
+        return Quaternions(self.qs[k])
+
+    def __setitem__(self, k, v):
+        self.qs[k] = v.qs
 
     @property
     def lengths(self):
-        return np.sum(self.qs**2.0, axis=-1)**0.5
+        return np.sum(self.qs**2.0, axis=-1) ** 0.5
 
     @property
     def reals(self):
@@ -176,7 +208,8 @@ class Quaternions:
         return self.qs[..., 1:4]
 
     @property
-    def shape(self): return self.qs.shape[:-1]
+    def shape(self):
+        return self.qs.shape[:-1]
 
     def repeat(self, n, **kwargs):
         return Quaternions(self.qs.repeat(n, **kwargs))
@@ -208,13 +241,20 @@ class Quaternions:
         ret[~img] = bot[~img]
         return ret
 
-    def constrained_x(self): return self.constrained(np.array([1, 0, 0]))
-    def constrained_y(self): return self.constrained(np.array([0, 1, 0]))
-    def constrained_z(self): return self.constrained(np.array([0, 0, 1]))
+    def constrained_x(self):
+        return self.constrained(np.array([1, 0, 0]))
 
-    def dot(self, q): return np.sum(self.qs * q.qs, axis=-1)
+    def constrained_y(self):
+        return self.constrained(np.array([0, 1, 0]))
 
-    def copy(self): return Quaternions(np.copy(self.qs))
+    def constrained_z(self):
+        return self.constrained(np.array([0, 0, 1]))
+
+    def dot(self, q):
+        return np.sum(self.qs * q.qs, axis=-1)
+
+    def copy(self):
+        return Quaternions(np.copy(self.qs))
 
     def reshape(self, s):
         self.qs.reshape(s)
@@ -223,7 +263,7 @@ class Quaternions:
     def interpolate(self, ws):
         return Quaternions.exp(np.average(abs(self).log, axis=0, weights=ws))
 
-    def euler(self, order='xyz'):
+    def euler(self, order="xyz"):
 
         q = self.normalized().qs
         q0 = q[..., 0]
@@ -232,16 +272,24 @@ class Quaternions:
         q3 = q[..., 3]
         es = np.zeros(self.shape + (3,))
 
-        if order == 'xyz':
-            es[..., 0] = np.arctan2(2 * (q0 * q1 + q2 * q3), 1 - 2 * (q1 * q1 + q2 * q2))
+        if order == "xyz":
+            es[..., 0] = np.arctan2(
+                2 * (q0 * q1 + q2 * q3), 1 - 2 * (q1 * q1 + q2 * q2)
+            )
             es[..., 1] = np.arcsin((2 * (q0 * q2 - q3 * q1)).clip(-1, 1))
-            es[..., 2] = np.arctan2(2 * (q0 * q3 + q1 * q2), 1 - 2 * (q2 * q2 + q3 * q3))
-        elif order == 'yzx':
-            es[..., 0] = np.arctan2(2 * (q1 * q0 - q2 * q3), -q1 * q1 + q2 * q2 - q3 * q3 + q0 * q0)
-            es[..., 1] = np.arctan2(2 * (q2 * q0 - q1 * q3),  q1 * q1 - q2 * q2 - q3 * q3 + q0 * q0)
+            es[..., 2] = np.arctan2(
+                2 * (q0 * q3 + q1 * q2), 1 - 2 * (q2 * q2 + q3 * q3)
+            )
+        elif order == "yzx":
+            es[..., 0] = np.arctan2(
+                2 * (q1 * q0 - q2 * q3), -q1 * q1 + q2 * q2 - q3 * q3 + q0 * q0
+            )
+            es[..., 1] = np.arctan2(
+                2 * (q2 * q0 - q1 * q3), q1 * q1 - q2 * q2 - q3 * q3 + q0 * q0
+            )
             es[..., 2] = np.arcsin((2 * (q1 * q2 + q3 * q0)).clip(-1, 1))
         else:
-            raise NotImplementedError('Cannot convert from ordering %s' % order)
+            raise NotImplementedError("Cannot convert from ordering %s" % order)
 
         """
         
@@ -287,14 +335,17 @@ class Quaternions:
         if len(self.shape) == 1:
 
             import numpy.core.umath_tests as ut
-            system = ut.matrix_multiply(self.qs[:, :, np.newaxis], self.qs[:, np.newaxis, :]).sum(axis=0)
+
+            system = ut.matrix_multiply(
+                self.qs[:, :, np.newaxis], self.qs[:, np.newaxis, :]
+            ).sum(axis=0)
             w, v = np.linalg.eigh(system)
             qiT_dot_qref = (self.qs[:, :, np.newaxis] * v[np.newaxis, :, :]).sum(axis=1)
-            return Quaternions(v[:, np.argmin((1.-qiT_dot_qref**2).sum(axis=0))])
+            return Quaternions(v[:, np.argmin((1.0 - qiT_dot_qref**2).sum(axis=0))])
 
         else:
 
-            raise NotImplementedError('Cannot average multi-dimensionsal Quaternions')
+            raise NotImplementedError("Cannot average multi-dimensionsal Quaternions")
 
     def angle_axis(self):
 
@@ -356,7 +407,7 @@ class Quaternions:
             qs[:, 0] = 1.0
             return Quaternions(qs)
 
-        raise TypeError('Cannot Construct Quaternion from %s type' % str(type(n)))
+        raise TypeError("Cannot Construct Quaternion from %s type" % str(type(n)))
 
     @classmethod
     def id_like(cls, a):
@@ -367,7 +418,7 @@ class Quaternions:
     @classmethod
     def exp(cls, ws):
 
-        ts = np.sum(ws**2.0, axis=-1)**0.5
+        ts = np.sum(ws**2.0, axis=-1) ** 0.5
         ts[ts == 0] = 0.001
         ls = np.sin(ts) / ts
 
@@ -405,14 +456,18 @@ class Quaternions:
         amount1[~linear] = np.sin(a[~linear] * omegas) / sinoms
 
         return Quaternions(
-            amount0[..., np.newaxis] * fst +
-            amount1[..., np.newaxis] * snd)
+            amount0[..., np.newaxis] * fst + amount1[..., np.newaxis] * snd
+        )
 
     @classmethod
     def between(cls, v0s, v1s):
         a = np.cross(v0s, v1s)
-        w = np.sqrt((v0s**2).sum(axis=-1) * (v1s**2).sum(axis=-1)) + (v0s * v1s).sum(axis=-1)
-        return Quaternions(np.concatenate([w[..., np.newaxis], a], axis=-1)).normalized()
+        w = np.sqrt((v0s**2).sum(axis=-1) * (v1s**2).sum(axis=-1)) + (
+            v0s * v1s
+        ).sum(axis=-1)
+        return Quaternions(
+            np.concatenate([w[..., np.newaxis], a], axis=-1)
+        ).normalized()
 
     @classmethod
     def from_angle_axis(cls, angles, axis):
@@ -422,12 +477,12 @@ class Quaternions:
         return Quaternions(np.concatenate([cosines, axis * sines], axis=-1))
 
     @classmethod
-    def from_euler(cls, es, order='xyz', world=False):
+    def from_euler(cls, es, order="xyz", world=False):
 
         axis = {
-            'x': np.array([1, 0, 0]),
-            'y': np.array([0, 1, 0]),
-            'z': np.array([0, 0, 1]),
+            "x": np.array([1, 0, 0]),
+            "y": np.array([0, 1, 0]),
+            "z": np.array([0, 0, 1]),
         }
 
         q0s = Quaternions.from_angle_axis(es[..., 0], axis[order[0]])

@@ -7,52 +7,84 @@ from tqdm import tqdm
 from utils import dist_util
 
 import utils.rotation_conversions as geometry
-import sys;sys.path.insert(0,'/apdcephfs/private_wallyliang/PLANT')
+import sys
+
+sys.path.insert(0, "/apdcephfs/private_wallyliang/PLANT")
 from Thirdparty.GLAMR.traj_predx.models.all_utils import *
 from Thirdparty.GLAMR.traj_predx.models.traj_utils import *
 
 from data_loaders.humanml.scripts.motion_process import process_file
 
+
 def build_models(opt):
-    if opt.text_enc_mod == 'bigru':
-        text_encoder = TextEncoderBiGRU(word_size=opt.dim_word,
-                                        pos_size=opt.dim_pos_ohot,
-                                        hidden_size=opt.dim_text_hidden,
-                                        device=opt.device)
+    if opt.text_enc_mod == "bigru":
+        text_encoder = TextEncoderBiGRU(
+            word_size=opt.dim_word,
+            pos_size=opt.dim_pos_ohot,
+            hidden_size=opt.dim_text_hidden,
+            device=opt.device,
+        )
         text_size = opt.dim_text_hidden * 2
     else:
         raise Exception("Text Encoder Mode not Recognized!!!")
 
-    seq_prior = TextDecoder(text_size=text_size,
-                            input_size=opt.dim_att_vec + opt.dim_movement_latent,
-                            output_size=opt.dim_z,
-                            hidden_size=opt.dim_pri_hidden,
-                            n_layers=opt.n_layers_pri)
+    seq_prior = TextDecoder(
+        text_size=text_size,
+        input_size=opt.dim_att_vec + opt.dim_movement_latent,
+        output_size=opt.dim_z,
+        hidden_size=opt.dim_pri_hidden,
+        n_layers=opt.n_layers_pri,
+    )
 
+    seq_decoder = TextVAEDecoder(
+        text_size=text_size,
+        input_size=opt.dim_att_vec + opt.dim_z + opt.dim_movement_latent,
+        output_size=opt.dim_movement_latent,
+        hidden_size=opt.dim_dec_hidden,
+        n_layers=opt.n_layers_dec,
+    )
 
-    seq_decoder = TextVAEDecoder(text_size=text_size,
-                                 input_size=opt.dim_att_vec + opt.dim_z + opt.dim_movement_latent,
-                                 output_size=opt.dim_movement_latent,
-                                 hidden_size=opt.dim_dec_hidden,
-                                 n_layers=opt.n_layers_dec)
+    att_layer = AttLayer(
+        query_dim=opt.dim_pos_hidden, key_dim=text_size, value_dim=opt.dim_att_vec
+    )
 
-    att_layer = AttLayer(query_dim=opt.dim_pos_hidden,
-                         key_dim=text_size,
-                         value_dim=opt.dim_att_vec)
+    movement_enc = MovementConvEncoder(
+        opt.dim_pose - 4, opt.dim_movement_enc_hidden, opt.dim_movement_latent
+    )
+    movement_dec = MovementConvDecoder(
+        opt.dim_movement_latent, opt.dim_movement_dec_hidden, opt.dim_pose
+    )
 
-    movement_enc = MovementConvEncoder(opt.dim_pose - 4, opt.dim_movement_enc_hidden, opt.dim_movement_latent)
-    movement_dec = MovementConvDecoder(opt.dim_movement_latent, opt.dim_movement_dec_hidden, opt.dim_pose)
-
-    len_estimator = MotionLenEstimatorBiGRU(opt.dim_word, opt.dim_pos_ohot, 512, opt.num_classes)
+    len_estimator = MotionLenEstimatorBiGRU(
+        opt.dim_word, opt.dim_pos_ohot, 512, opt.num_classes
+    )
 
     # latent_dis = LatentDis(input_size=opt.dim_z * 2)
-    checkpoints = torch.load(pjoin(opt.checkpoints_dir, opt.dataset_name, 'length_est_bigru', 'model', 'latest.tar'), map_location=opt.device)
-    len_estimator.load_state_dict(checkpoints['estimator'])
+    checkpoints = torch.load(
+        pjoin(
+            opt.checkpoints_dir,
+            opt.dataset_name,
+            "length_est_bigru",
+            "model",
+            "latest.tar",
+        ),
+        map_location=opt.device,
+    )
+    len_estimator.load_state_dict(checkpoints["estimator"])
     len_estimator.to(opt.device)
     len_estimator.eval()
 
     # return text_encoder, text_decoder, att_layer, vae_pri, vae_dec, vae_pos, motion_dis, movement_dis, latent_dis
-    return text_encoder, seq_prior, seq_decoder, att_layer, movement_enc, movement_dec, len_estimator
+    return (
+        text_encoder,
+        seq_prior,
+        seq_decoder,
+        att_layer,
+        movement_enc,
+        movement_dec,
+        len_estimator,
+    )
+
 
 class CompV6GeneratedDataset(Dataset):
 
@@ -61,23 +93,29 @@ class CompV6GeneratedDataset(Dataset):
         print(opt.model_dir)
 
         dataloader = DataLoader(dataset, batch_size=1, num_workers=1, shuffle=True)
-        text_enc, seq_pri, seq_dec, att_layer, mov_enc, mov_dec, len_estimator = build_models(opt)
-        trainer = CompTrainerV6(opt, text_enc, seq_pri, seq_dec, att_layer, mov_dec, mov_enc=mov_enc)
-        epoch, it, sub_ep, schedule_len = trainer.load(pjoin(opt.model_dir, opt.which_epoch + '.tar'))
+        text_enc, seq_pri, seq_dec, att_layer, mov_enc, mov_dec, len_estimator = (
+            build_models(opt)
+        )
+        trainer = CompTrainerV6(
+            opt, text_enc, seq_pri, seq_dec, att_layer, mov_dec, mov_enc=mov_enc
+        )
+        epoch, it, sub_ep, schedule_len = trainer.load(
+            pjoin(opt.model_dir, opt.which_epoch + ".tar")
+        )
         generated_motion = []
         mm_generated_motions = []
         mm_idxs = np.random.choice(len(dataset), mm_num_samples, replace=False)
         mm_idxs = np.sort(mm_idxs)
-        min_mov_length = 10 if opt.dataset_name == 't2m' else 6
+        min_mov_length = 10 if opt.dataset_name == "t2m" else 6
         # print(mm_idxs)
 
-        print('Loading model: Epoch %03d Schedule_len %03d' % (epoch, schedule_len))
+        print("Loading model: Epoch %03d Schedule_len %03d" % (epoch, schedule_len))
         trainer.eval_mode()
         trainer.to(opt.device)
         with torch.no_grad():
             for i, data in tqdm(enumerate(dataloader)):
                 word_emb, pos_ohot, caption, cap_lens, motions, m_lens, tokens = data
-                tokens = tokens[0].split('_')
+                tokens = tokens[0].split("_")
                 word_emb = word_emb.detach().to(opt.device).float()
                 pos_ohot = pos_ohot.detach().to(opt.device).float()
 
@@ -85,7 +123,11 @@ class CompV6GeneratedDataset(Dataset):
                 pred_dis = nn.Softmax(-1)(pred_dis).squeeze()
 
                 mm_num_now = len(mm_generated_motions)
-                is_mm = True if ((mm_num_now < mm_num_samples) and (i == mm_idxs[mm_num_now])) else False
+                is_mm = (
+                    True
+                    if ((mm_num_now < mm_num_samples) and (i == mm_idxs[mm_num_now]))
+                    else False
+                )
 
                 repeat_times = mm_num_repeats if is_mm else 1
                 mm_motions = []
@@ -97,43 +139,60 @@ class CompV6GeneratedDataset(Dataset):
                         mov_length = torch.multinomial(pred_dis, 1, replacement=True)
 
                     m_lens = mov_length * opt.unit_length
-                    pred_motions, _, _ = trainer.generate(word_emb, pos_ohot, cap_lens, m_lens,
-                                                          m_lens[0]//opt.unit_length, opt.dim_pose)
+                    pred_motions, _, _ = trainer.generate(
+                        word_emb,
+                        pos_ohot,
+                        cap_lens,
+                        m_lens,
+                        m_lens[0] // opt.unit_length,
+                        opt.dim_pose,
+                    )
                     if t == 0:
                         # print(m_lens)
                         # print(text_data)
-                        sub_dict = {'motion': pred_motions[0].cpu().numpy(),
-                                    'length': m_lens[0].item(),
-                                    'cap_len': cap_lens[0].item(),
-                                    'caption': caption[0],
-                                    'tokens': tokens}
+                        sub_dict = {
+                            "motion": pred_motions[0].cpu().numpy(),
+                            "length": m_lens[0].item(),
+                            "cap_len": cap_lens[0].item(),
+                            "caption": caption[0],
+                            "tokens": tokens,
+                        }
                         generated_motion.append(sub_dict)
 
                     if is_mm:
-                        mm_motions.append({
-                            'motion': pred_motions[0].cpu().numpy(),
-                            'length': m_lens[0].item()
-                        })
+                        mm_motions.append(
+                            {
+                                "motion": pred_motions[0].cpu().numpy(),
+                                "length": m_lens[0].item(),
+                            }
+                        )
                 if is_mm:
-                    mm_generated_motions.append({'caption': caption[0],
-                                                 'tokens': tokens,
-                                                 'cap_len': cap_lens[0].item(),
-                                                 'mm_motions': mm_motions})
+                    mm_generated_motions.append(
+                        {
+                            "caption": caption[0],
+                            "tokens": tokens,
+                            "cap_len": cap_lens[0].item(),
+                            "mm_motions": mm_motions,
+                        }
+                    )
 
         self.generated_motion = generated_motion
         self.mm_generated_motion = mm_generated_motions
         self.opt = opt
         self.w_vectorizer = w_vectorizer
 
-
     def __len__(self):
         return len(self.generated_motion)
 
-
     def __getitem__(self, item):
         data = self.generated_motion[item]
-        motion, m_length, caption, tokens = data['motion'], data['length'], data['caption'], data['tokens']
-        sent_len = data['cap_len']
+        motion, m_length, caption, tokens = (
+            data["motion"],
+            data["length"],
+            data["caption"],
+            data["tokens"],
+        )
+        sent_len = data["cap_len"]
 
         pos_one_hots = []
         word_embeddings = []
@@ -145,14 +204,37 @@ class CompV6GeneratedDataset(Dataset):
         word_embeddings = np.concatenate(word_embeddings, axis=0)
 
         if m_length < self.opt.max_motion_length:
-            motion = np.concatenate([motion,
-                                     np.zeros((self.opt.max_motion_length - m_length, motion.shape[1]))
-                                     ], axis=0)
-        return word_embeddings, pos_one_hots, caption, sent_len, motion, m_length, '_'.join(tokens)
+            motion = np.concatenate(
+                [
+                    motion,
+                    np.zeros((self.opt.max_motion_length - m_length, motion.shape[1])),
+                ],
+                axis=0,
+            )
+        return (
+            word_embeddings,
+            pos_one_hots,
+            caption,
+            sent_len,
+            motion,
+            m_length,
+            "_".join(tokens),
+        )
+
 
 class CompMDMGeneratedDataset(Dataset):
 
-    def __init__(self, model, diffusion, dataloader, mm_num_samples, mm_num_repeats, max_motion_length, num_samples_limit, scale=1.):
+    def __init__(
+        self,
+        model,
+        diffusion,
+        dataloader,
+        mm_num_samples,
+        mm_num_repeats,
+        max_motion_length,
+        num_samples_limit,
+        scale=1.0,
+    ):
         self.dataloader = dataloader
         self.dataset = dataloader.dataset
         assert mm_num_samples < len(dataloader.dataset)
@@ -166,32 +248,39 @@ class CompMDMGeneratedDataset(Dataset):
         real_num_batches = len(dataloader)
         if num_samples_limit is not None:
             real_num_batches = num_samples_limit // dataloader.batch_size + 1
-        print('real_num_batches', real_num_batches)
+        print("real_num_batches", real_num_batches)
 
         generated_motion = []
         mm_generated_motions = []
         if mm_num_samples > 0:
-            mm_idxs = np.random.choice(real_num_batches, mm_num_samples // dataloader.batch_size +1, replace=False)
+            mm_idxs = np.random.choice(
+                real_num_batches,
+                mm_num_samples // dataloader.batch_size + 1,
+                replace=False,
+            )
             mm_idxs = np.sort(mm_idxs)
         else:
             mm_idxs = []
-        print('mm_idxs', mm_idxs)
+        print("mm_idxs", mm_idxs)
 
         model.eval()
-
 
         with torch.no_grad():
             for i, (motion, model_kwargs) in tqdm(enumerate(dataloader)):
 
-                if num_samples_limit is not None and len(generated_motion) >= num_samples_limit:
+                if (
+                    num_samples_limit is not None
+                    and len(generated_motion) >= num_samples_limit
+                ):
                     break
 
-                tokens = [t.split('_') for t in model_kwargs['y']['tokens']]
+                tokens = [t.split("_") for t in model_kwargs["y"]["tokens"]]
 
                 # add CFG scale to batch
-                if scale != 1.:
-                    model_kwargs['y']['scale'] = torch.ones(motion.shape[0],
-                                                            device=dist_util.dev()) * scale
+                if scale != 1.0:
+                    model_kwargs["y"]["scale"] = (
+                        torch.ones(motion.shape[0], device=dist_util.dev()) * scale
+                    )
 
                 mm_num_now = len(mm_generated_motions) // dataloader.batch_size
                 is_mm = i in mm_idxs
@@ -214,46 +303,75 @@ class CompMDMGeneratedDataset(Dataset):
                     )
 
                     if t == 0:
-                        sub_dicts = [{'motion': sample[bs_i].squeeze().permute(1,0).cpu().numpy(),
-                                    'length': model_kwargs['y']['lengths'][bs_i].cpu().numpy(),
-                                    'caption': model_kwargs['y']['text'][bs_i],
-                                    'tokens': tokens[bs_i],
-                                    'cap_len': len(tokens[bs_i]),
-                                    } for bs_i in range(dataloader.batch_size)]
+                        sub_dicts = [
+                            {
+                                "motion": sample[bs_i]
+                                .squeeze()
+                                .permute(1, 0)
+                                .cpu()
+                                .numpy(),
+                                "length": model_kwargs["y"]["lengths"][bs_i]
+                                .cpu()
+                                .numpy(),
+                                "caption": model_kwargs["y"]["text"][bs_i],
+                                "tokens": tokens[bs_i],
+                                "cap_len": len(tokens[bs_i]),
+                            }
+                            for bs_i in range(dataloader.batch_size)
+                        ]
                         generated_motion += sub_dicts
 
                     if is_mm:
-                        mm_motions += [{'motion': sample[bs_i].squeeze().permute(1, 0).cpu().numpy(),
-                                        'length': model_kwargs['y']['lengths'][bs_i].cpu().numpy(),
-                                        } for bs_i in range(dataloader.batch_size)]
+                        mm_motions += [
+                            {
+                                "motion": sample[bs_i]
+                                .squeeze()
+                                .permute(1, 0)
+                                .cpu()
+                                .numpy(),
+                                "length": model_kwargs["y"]["lengths"][bs_i]
+                                .cpu()
+                                .numpy(),
+                            }
+                            for bs_i in range(dataloader.batch_size)
+                        ]
 
                 if is_mm:
-                    mm_generated_motions += [{
-                                    'caption': model_kwargs['y']['text'][bs_i],
-                                    'tokens': tokens[bs_i],
-                                    'cap_len': len(tokens[bs_i]),
-                                    'mm_motions': mm_motions[bs_i::dataloader.batch_size],  # collect all 10 repeats from the (32*10) generated motions
-                                    } for bs_i in range(dataloader.batch_size)]
-
+                    mm_generated_motions += [
+                        {
+                            "caption": model_kwargs["y"]["text"][bs_i],
+                            "tokens": tokens[bs_i],
+                            "cap_len": len(tokens[bs_i]),
+                            "mm_motions": mm_motions[
+                                bs_i :: dataloader.batch_size
+                            ],  # collect all 10 repeats from the (32*10) generated motions
+                        }
+                        for bs_i in range(dataloader.batch_size)
+                    ]
 
         self.generated_motion = generated_motion
         self.mm_generated_motion = mm_generated_motions
         self.w_vectorizer = dataloader.dataset.w_vectorizer
 
-
     def __len__(self):
         return len(self.generated_motion)
 
-
     def __getitem__(self, item):
         data = self.generated_motion[item]
-        motion, m_length, caption, tokens = data['motion'], data['length'], data['caption'], data['tokens']
-        sent_len = data['cap_len']
+        motion, m_length, caption, tokens = (
+            data["motion"],
+            data["length"],
+            data["caption"],
+            data["tokens"],
+        )
+        sent_len = data["cap_len"]
 
-        if self.dataset.mode == 'eval':
+        if self.dataset.mode == "eval":
             normed_motion = motion
             denormed_motion = self.dataset.t2m_dataset.inv_transform(normed_motion)
-            renormed_motion = (denormed_motion - self.dataset.mean_for_eval) / self.dataset.std_for_eval  # according to T2M norms
+            renormed_motion = (
+                denormed_motion - self.dataset.mean_for_eval
+            ) / self.dataset.std_for_eval  # according to T2M norms
             motion = renormed_motion
             # This step is needed because T2M evaluators expect their norm convention
 
@@ -266,13 +384,31 @@ class CompMDMGeneratedDataset(Dataset):
         pos_one_hots = np.concatenate(pos_one_hots, axis=0)
         word_embeddings = np.concatenate(word_embeddings, axis=0)
 
-        return word_embeddings, pos_one_hots, caption, sent_len, motion, m_length, '_'.join(tokens)
-    
-    
+        return (
+            word_embeddings,
+            pos_one_hots,
+            caption,
+            sent_len,
+            motion,
+            m_length,
+            "_".join(tokens),
+        )
+
 
 class TamingGeneratedDataset(Dataset):
 
-    def __init__(self, model, diffusion, dataloader, mm_num_samples, mm_num_repeats, max_motion_length, num_samples_limit, scale=1., args = None):
+    def __init__(
+        self,
+        model,
+        diffusion,
+        dataloader,
+        mm_num_samples,
+        mm_num_repeats,
+        max_motion_length,
+        num_samples_limit,
+        scale=1.0,
+        args=None,
+    ):
         self.dataloader = dataloader
         self.dataset = dataloader.dataset
         assert mm_num_samples < len(dataloader.dataset)
@@ -286,16 +422,20 @@ class TamingGeneratedDataset(Dataset):
         real_num_batches = len(dataloader)
         if num_samples_limit is not None:
             real_num_batches = num_samples_limit // dataloader.batch_size + 1
-        print('real_num_batches', real_num_batches)
+        print("real_num_batches", real_num_batches)
 
         generated_motion = []
         mm_generated_motions = []
         if mm_num_samples > 0:
-            mm_idxs = np.random.choice(real_num_batches, mm_num_samples // dataloader.batch_size +1, replace=False)
+            mm_idxs = np.random.choice(
+                real_num_batches,
+                mm_num_samples // dataloader.batch_size + 1,
+                replace=False,
+            )
             mm_idxs = np.sort(mm_idxs)
         else:
             mm_idxs = []
-        print('mm_idxs', mm_idxs)
+        print("mm_idxs", mm_idxs)
 
         model.eval()
         self.model = model
@@ -303,44 +443,73 @@ class TamingGeneratedDataset(Dataset):
         infer_step = args.infer_step
         gen_target_T = args.window_size
         I = torch.ones(1).cuda()
-        max_frames = inp_len = past_motion_offset = dataloader.dataset.t2m_dataset.pastMotion_len
+        max_frames = inp_len = past_motion_offset = (
+            dataloader.dataset.t2m_dataset.pastMotion_len
+        )
         model.model.inp_len = inp_len
 
         with torch.no_grad():
             for i, (motion, model_kwargs) in tqdm(enumerate(dataloader)):
-                
-                if num_samples_limit is not None and len(generated_motion) >= num_samples_limit:
+
+                if (
+                    num_samples_limit is not None
+                    and len(generated_motion) >= num_samples_limit
+                ):
                     break
 
-                tokens = [t.split('_') for t in model_kwargs['y']['tokens']]
+                tokens = [t.split("_") for t in model_kwargs["y"]["tokens"]]
 
                 # add CFG scale to batch
-                if scale != 1.: model_kwargs['y']['scale'] = torch.ones(motion.shape[0],device=dist_util.dev()) * scale
+                if scale != 1.0:
+                    model_kwargs["y"]["scale"] = (
+                        torch.ones(motion.shape[0], device=dist_util.dev()) * scale
+                    )
 
                 mm_num_now = len(mm_generated_motions) // dataloader.batch_size
                 is_mm = i in mm_idxs
                 repeat_times = mm_num_repeats if is_mm else 1
                 mm_motions = []
-                
-                
+
                 for t in range(repeat_times):
                     # import ipdb;ipdb.set_trace()
-                    target_transl_traj = model_kwargs['y']['ctrl_traj'].clone().squeeze(2).permute(0,2,1)
-                    target_transl_traj = torch.cat([target_transl_traj, target_transl_traj[:,-1:].repeat(1,15,1)], dim=1)
-                    ar_model_output_list = model_kwargs['y']['past_motion'].type_as(I)[:,:,:,:past_motion_offset]
+                    target_transl_traj = (
+                        model_kwargs["y"]["ctrl_traj"]
+                        .clone()
+                        .squeeze(2)
+                        .permute(0, 2, 1)
+                    )
+                    target_transl_traj = torch.cat(
+                        [
+                            target_transl_traj,
+                            target_transl_traj[:, -1:].repeat(1, 15, 1),
+                        ],
+                        dim=1,
+                    )
+                    ar_model_output_list = model_kwargs["y"]["past_motion"].type_as(I)[
+                        :, :, :, :past_motion_offset
+                    ]
                     # ar_model_output_list = torch.cat([ar_model_output_list, ar_model_output_list[:,:,:,-infer_step:]], dim=-1) #[1, 203, 1, T]
-                    for time in range(0, gen_target_T, infer_step):            
-                        print(f'time: {time}')
-                        ctrl_traj = target_transl_traj[:,time:time+inp_len]
-                        # if ctrl_traj.shape[1]!=inp_len: break      
+                    for time in range(0, gen_target_T, infer_step):
+                        print(f"time: {time}")
+                        ctrl_traj = target_transl_traj[:, time : time + inp_len]
+                        # if ctrl_traj.shape[1]!=inp_len: break
                         # if 'normCtrlTraj' in args.in_type:
                         # ctrl_traj = (ctrl_traj - torch.from_numpy(dataloader.dataset.t2m_dataset.ctrl_signal_mean)[None,None,...].type_as(ctrl_traj))/torch.from_numpy(dataloader.dataset.t2m_dataset.ctrl_signal_std)[None,None,...].type_as(ctrl_traj)
-                        model_kwargs['y']['ctrl_traj'] = ctrl_traj.permute(0,2,1).unsqueeze(2)      
-                        model_kwargs['y']['past_motion'] = ar_model_output_list[:,:,:,-past_motion_offset:]                
+                        model_kwargs["y"]["ctrl_traj"] = ctrl_traj.permute(
+                            0, 2, 1
+                        ).unsqueeze(2)
+                        model_kwargs["y"]["past_motion"] = ar_model_output_list[
+                            :, :, :, -past_motion_offset:
+                        ]
                         # import ipdb;ipdb.set_trace()
                         sample = sample_fn(
                             model,
-                            (dataloader.batch_size, model.njoints, model.nfeats, max_frames),
+                            (
+                                dataloader.batch_size,
+                                model.njoints,
+                                model.nfeats,
+                                max_frames,
+                            ),
                             clip_denoised=False,
                             model_kwargs=model_kwargs,
                             skip_timesteps=0,
@@ -349,45 +518,53 @@ class TamingGeneratedDataset(Dataset):
                             dump_steps=None,
                             noise=None,
                             const_noise=False,
-                        )                                                    
-                        
-                        ar_model_output_list = torch.cat([ar_model_output_list, sample[:,:,:,:infer_step]], dim=-1) #[1, 203, 1, T]
-                        
+                        )
+
+                        ar_model_output_list = torch.cat(
+                            [ar_model_output_list, sample[:, :, :, :infer_step]], dim=-1
+                        )  # [1, 203, 1, T]
+
                     # import ipdb;ipdb.set_trace()
-                    sample = ar_model_output_list[:,:,:,-gen_target_T:]
+                    sample = ar_model_output_list[:, :, :, -gen_target_T:]
                     # mean = torch.from_numpy(dataloader.dataset.t2m_dataset.motoin_info_all_list_mean).type_as(I)
                     # std =  torch.from_numpy(dataloader.dataset.t2m_dataset.motoin_info_all_list_std).type_as(I)
                     # std = std[:137]
                     # mean = mean[:137]
-                    # sample = sample[:,:137,:,:] 
+                    # sample = sample[:,:137,:,:]
                     # motion = torch.stack([(sample[bs_i,:,0,:].permute(1,0)*std+mean) for bs_i in range(dataloader.batch_size)])
                     # # import ipdb;ipdb.set_trace()
                     sample = sample.squeeze()
-                    motion = sample.permute(0,2,1)
-                    
-                    if t == 0:
-                        sub_dicts = [{'motion': motion[bs_i].cpu().numpy(),
-                                    'length': gen_target_T,
-                                    'caption': model_kwargs['y']['text'][bs_i],
-                                    'tokens': tokens[bs_i],
-                                    'cap_len': len(tokens[bs_i]),
-                                    } for bs_i in range(dataloader.batch_size)]
-                        generated_motion += sub_dicts
+                    motion = sample.permute(0, 2, 1)
 
+                    if t == 0:
+                        sub_dicts = [
+                            {
+                                "motion": motion[bs_i].cpu().numpy(),
+                                "length": gen_target_T,
+                                "caption": model_kwargs["y"]["text"][bs_i],
+                                "tokens": tokens[bs_i],
+                                "cap_len": len(tokens[bs_i]),
+                            }
+                            for bs_i in range(dataloader.batch_size)
+                        ]
+                        generated_motion += sub_dicts
 
         self.generated_motion = generated_motion
         self.mm_generated_motion = mm_generated_motions
         self.w_vectorizer = dataloader.dataset.w_vectorizer
 
-
     def __len__(self):
         return len(self.generated_motion)
 
-
     def __getitem__(self, item):
         data = self.generated_motion[item]
-        motion, m_length, caption, tokens = data['motion'], data['length'], data['caption'], data['tokens']
-        sent_len = data['cap_len']
+        motion, m_length, caption, tokens = (
+            data["motion"],
+            data["length"],
+            data["caption"],
+            data["tokens"],
+        )
+        sent_len = data["cap_len"]
 
         # if self.dataset.mode == 'eval':
         #     # normed_motion = motion
@@ -404,4 +581,12 @@ class TamingGeneratedDataset(Dataset):
         word_embeddings = np.concatenate(word_embeddings, axis=0)
 
         # import ipdb;ipdb.set_trace()
-        return word_embeddings, pos_one_hots, caption, sent_len, motion, m_length, '_'.join(tokens)    
+        return (
+            word_embeddings,
+            pos_one_hots,
+            caption,
+            sent_len,
+            motion,
+            m_length,
+            "_".join(tokens),
+        )

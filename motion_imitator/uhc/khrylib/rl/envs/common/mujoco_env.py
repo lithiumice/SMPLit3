@@ -124,11 +124,15 @@ class MujocoEnv:
     def render(self, mode="human", width=DEFAULT_SIZE, height=DEFAULT_SIZE):
         if mode == "image":
             self._get_viewer(mode).render(width, height)
-            if "human" in self._viewers and not self._viewers['human'] is None:
-                self._viewers['image'].cam.lookat[:] = self._viewers['human'].cam.lookat
-                self._viewers['image'].cam.azimuth = self._viewers['human'].cam.azimuth
-                self._viewers['image'].cam.elevation = self._viewers['human'].cam.elevation
-                self._viewers['image'].cam.distance = self._viewers['human'].cam.distance
+            if "human" in self._viewers and not self._viewers["human"] is None:
+                self._viewers["image"].cam.lookat[:] = self._viewers["human"].cam.lookat
+                self._viewers["image"].cam.azimuth = self._viewers["human"].cam.azimuth
+                self._viewers["image"].cam.elevation = self._viewers[
+                    "human"
+                ].cam.elevation
+                self._viewers["image"].cam.distance = self._viewers[
+                    "human"
+                ].cam.distance
             # window size used for old mujoco-py:
             data = self._get_viewer(mode).read_pixels(width, height, depth=False)
             # original image is upside-down, so flip it, and the image format is BGR for OpenCV
@@ -149,12 +153,11 @@ class MujocoEnv:
                 self.viewer = MjViewer(self.sim)
             elif mode == "image":
                 self.viewer = mujoco_py.MjRenderContextOffscreen(self.sim, 0)
-                if "human" in self._viewers and not self._viewers['human'] is None:
-                    self.viewer.cam.lookat[:] = self._viewers['human'].cam.lookat
-                    self.viewer.cam.azimuth = self._viewers['human'].cam.azimuth
-                    self.viewer.cam.elevation = self._viewers['human'].cam.elevation
-                    self.viewer.cam.distance = self._viewers[
-                        'human'].cam.distance
+                if "human" in self._viewers and not self._viewers["human"] is None:
+                    self.viewer.cam.lookat[:] = self._viewers["human"].cam.lookat
+                    self.viewer.cam.azimuth = self._viewers["human"].cam.azimuth
+                    self.viewer.cam.elevation = self._viewers["human"].cam.elevation
+                    self.viewer.cam.distance = self._viewers["human"].cam.distance
             self._viewers[mode] = self.viewer
         self.viewer_setup(mode)
         return self.viewer

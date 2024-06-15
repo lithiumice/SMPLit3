@@ -8,39 +8,48 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
-from nemf_rotations import euler_angles_to_matrix, quaternion_to_matrix, rotation_6d_to_matrix
+from nemf_rotations import (
+    euler_angles_to_matrix,
+    quaternion_to_matrix,
+    rotation_6d_to_matrix,
+)
 
 
 class ForwardKinematicsLayer(nn.Module):
-    """ Forward Kinematics Layer Class """
+    """Forward Kinematics Layer Class"""
 
     def __init__(self, args=None, parents=None, positions=None, device=None):
         super().__init__()
         self.b_idxs = None
         if device is None:
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
             self.device = device
         if parents is None and positions is None:
             # Load SMPL skeleton (their joint order is different from the one we use for bvh export)
-            if hasattr(args, 'hand_type'):
-                if args.hand_type == 'L':
+            if hasattr(args, "hand_type"):
+                if args.hand_type == "L":
                     smpl_fname = os.path.join(args.smpl.mano_model, "MANO_LEFT.pkl")
-                elif args.hand_type == 'R':
+                elif args.hand_type == "R":
                     smpl_fname = os.path.join(args.smpl.mano_model, "MANO_RIGHT.pkl")
                 # import ipdb;ipdb.set_trace()
                 import pickle
-                smpl_data = pickle.load(open(smpl_fname, 'rb'), encoding='latin1')
+
+                smpl_data = pickle.load(open(smpl_fname, "rb"), encoding="latin1")
             else:
                 # smpl_fname = os.path.join(args.smpl.smpl_body_model, args.data.gender, 'model.npz')
                 # import ipdb;ipdb.set_trace()
-                smpl_fname = '../../model_files/uhc_data/smpl/SMPL_N_model.npz'
-                smpl_data = np.load(smpl_fname, encoding='latin1')
-                
+                smpl_fname = "../../model_files/uhc_data/smpl/SMPL_N_model.npz"
+                smpl_data = np.load(smpl_fname, encoding="latin1")
+
             self.smpl_data = smpl_data
-            self.parents = torch.from_numpy(smpl_data['kintree_table'][0].astype(np.int32)).to(self.device)
+            self.parents = torch.from_numpy(
+                smpl_data["kintree_table"][0].astype(np.int32)
+            ).to(self.device)
             self.parents = self.parents.long()
-            self.positions = torch.from_numpy(smpl_data['J'].astype(np.float32)).to(self.device)
+            self.positions = torch.from_numpy(smpl_data["J"].astype(np.float32)).to(
+                self.device
+            )
             self.positions[1:] -= self.positions[self.parents[1:]]
         else:
             self.parents = torch.from_numpy(parents).to(self.device)
@@ -55,7 +64,8 @@ class ForwardKinematicsLayer(nn.Module):
     def identity_rotation(self, rotations):
         diagonal = torch.diag(torch.tensor([1.0, 1.0, 1.0, 1.0])).to(self.device)
         diagonal = torch.reshape(
-            diagonal, torch.Size([1] * len(rotations.shape[:2]) + [4, 4]))
+            diagonal, torch.Size([1] * len(rotations.shape[:2]) + [4, 4])
+        )
         ts = diagonal.repeat(rotations.shape[:2] + torch.Size([1, 1]))
         return ts
 
@@ -63,16 +73,20 @@ class ForwardKinematicsLayer(nn.Module):
         if len(rotations.shape) == 4 and rotations.shape[-2:] == torch.Size([3, 3]):
             rot_matrices = rotations
         elif rotations.shape[-1] == 3:
-            rot_matrices = euler_angles_to_matrix(rotations, convention='XYZ')
+            rot_matrices = euler_angles_to_matrix(rotations, convention="XYZ")
         elif rotations.shape[-1] == 4:
             rot_matrices = quaternion_to_matrix(rotations)
         elif rotations.shape[-1] == 6:
             rot_matrices = rotation_6d_to_matrix(rotations)
         else:
-            raise NotImplementedError(f'Unimplemented rotation representation in FK layer, shape of {rotations.shape}')
+            raise NotImplementedError(
+                f"Unimplemented rotation representation in FK layer, shape of {rotations.shape}"
+            )
 
         rot_matrices = torch.cat([rot_matrices, positions[..., None]], dim=-1)
-        zeros = torch.zeros(rot_matrices.shape[:-2] + torch.Size([1, 3])).to(self.device)
+        zeros = torch.zeros(rot_matrices.shape[:-2] + torch.Size([1, 3])).to(
+            self.device
+        )
         ones = torch.ones(rot_matrices.shape[:-2] + torch.Size([1, 1])).to(self.device)
         zerosones = torch.cat([zeros, ones], dim=-1)
         rot_matrices = torch.cat([rot_matrices, zerosones], dim=-2)
@@ -121,7 +135,10 @@ class ForwardKinematicsLayer(nn.Module):
             if i == 0:
                 local_xform[:, i] = global_xform[:, i]
             else:
-                local_xform[:, i] = torch.bmm(torch.linalg.inv(global_xform[:, self.parents[i]]), global_xform[:, i])
+                local_xform[:, i] = torch.bmm(
+                    torch.linalg.inv(global_xform[:, self.parents[i]]),
+                    global_xform[:, i],
+                )
 
         return local_xform
 
@@ -139,7 +156,10 @@ class ForwardKinematicsLayer(nn.Module):
             if i == 0:
                 local_xform[:, i] = global_xform[:, i]
             else:
-                local_xform[:, i] = torch.bmm(torch.linalg.inv(global_xform[:, self.parents[i]]), global_xform[:, i])
+                local_xform[:, i] = torch.bmm(
+                    torch.linalg.inv(global_xform[:, self.parents[i]]),
+                    global_xform[:, i],
+                )
 
         return local_xform
 

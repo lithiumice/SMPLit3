@@ -7,8 +7,10 @@ from src.models.MICA.arcface import Arcface
 
 def kaiming_leaky_init(m):
     classname = m.__class__.__name__
-    if classname.find('Linear') != -1:
-        torch.nn.init.kaiming_normal_(m.weight, a=0.2, mode='fan_in', nonlinearity='leaky_relu')
+    if classname.find("Linear") != -1:
+        torch.nn.init.kaiming_normal_(
+            m.weight, a=0.2, mode="fan_in", nonlinearity="leaky_relu"
+        )
 
 
 class MappingNetwork(nn.Module):
@@ -21,9 +23,15 @@ class MappingNetwork(nn.Module):
             self.skips = []
 
         self.network = nn.ModuleList(
-            [nn.Linear(z_dim, map_hidden_dim)] +
-            [nn.Linear(map_hidden_dim, map_hidden_dim) if i not in self.skips else
-             nn.Linear(map_hidden_dim + z_dim, map_hidden_dim) for i in range(hidden)]
+            [nn.Linear(z_dim, map_hidden_dim)]
+            + [
+                (
+                    nn.Linear(map_hidden_dim, map_hidden_dim)
+                    if i not in self.skips
+                    else nn.Linear(map_hidden_dim + z_dim, map_hidden_dim)
+                )
+                for i in range(hidden)
+            ]
         )
 
         self.output = nn.Linear(map_hidden_dim, map_output_dim)
@@ -41,10 +49,11 @@ class MappingNetwork(nn.Module):
 
         output = self.output(h)
         return output
-    
+
+
 import os
 
-_DATA=os.path.join(os.path.dirname(__file__),'../../../../model_files/smirk')
+_DATA = os.path.join(os.path.dirname(__file__), "../../../../model_files/smirk")
 
 
 class MICA(nn.Module):
@@ -57,15 +66,16 @@ class MICA(nn.Module):
 
         checkpoint = torch.load(f"{_DATA}/mica.tar")
 
-        self.arcface.load_state_dict(checkpoint['arcface'], strict=True)
+        self.arcface.load_state_dict(checkpoint["arcface"], strict=True)
 
         mapping_network_keys = {}
-        for key in checkpoint['flameModel'].keys():
-            if 'network' in key or 'output' in key:
-                mapping_network_keys[key.replace("regressor.","")] = checkpoint['flameModel'][key]
+        for key in checkpoint["flameModel"].keys():
+            if "network" in key or "output" in key:
+                mapping_network_keys[key.replace("regressor.", "")] = checkpoint[
+                    "flameModel"
+                ][key]
 
         self.regressor.load_state_dict(mapping_network_keys, strict=True)
-
 
     def forward(self, images):
 
@@ -74,21 +84,27 @@ class MICA(nn.Module):
         # transformed_images_for_mica = F.interpolate(transformed_images_for_mica, size=(112, 112))
 
         arcface_features = F.normalize(self.arcface(transformed_images_for_mica))
-        
+
         shape_params = self.regressor(arcface_features)
 
-        return {'shape_params': shape_params}
+        return {"shape_params": shape_params}
 
     def calculate_mica_shape_loss(self, shape_params, img):
-        """ Runs MICA on the input image and calculates the L2 loss between the input shape_params and the shape_params calculated by MICA. """
+        """Runs MICA on the input image and calculates the L2 loss between the input shape_params and the shape_params calculated by MICA."""
         B, D = shape_params.size()
 
         with torch.no_grad():
             mica_output = self.forward(img.reshape(-1, 3, 112, 112))
-            mica_shape = mica_output['shape_params'].detach()
+            mica_shape = mica_output["shape_params"].detach()
 
         if D > mica_shape.size(-1):
-            mica_shape = torch.cat([mica_shape, torch.zeros(B, D - mica_shape.size(-1)).to(self.config.device)], dim=-1)
+            mica_shape = torch.cat(
+                [
+                    mica_shape,
+                    torch.zeros(B, D - mica_shape.size(-1)).to(self.config.device),
+                ],
+                dim=-1,
+            )
 
         loss = F.mse_loss(shape_params, mica_shape)
         return loss

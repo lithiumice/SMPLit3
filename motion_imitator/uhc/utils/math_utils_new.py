@@ -151,7 +151,7 @@ def quat_from_expmap(e):
 
 
 def quat_correct(quat):
-    """ Converts quaternion to minimize Euclidean distance from previous quaternion (wxyz order) """
+    """Converts quaternion to minimize Euclidean distance from previous quaternion (wxyz order)"""
     for q in range(1, quat.shape[0]):
         if np.linalg.norm(quat[q - 1] - quat[q], axis=0) > np.linalg.norm(
             quat[q - 1] + quat[q], axis=0

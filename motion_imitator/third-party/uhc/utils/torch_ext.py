@@ -15,9 +15,12 @@ class to_cpu:
 
     def __init__(self, *models):
         self.models = list(filter(lambda x: x is not None, models))
-        self.prev_devices = [x.device if hasattr(x, 'device') else next(x.parameters()).device for x in self.models]
+        self.prev_devices = [
+            x.device if hasattr(x, "device") else next(x.parameters()).device
+            for x in self.models
+        ]
         for x in self.models:
-            x.to(torch.device('cpu'))
+            x.to(torch.device("cpu"))
 
     def __enter__(self):
         pass
@@ -32,7 +35,10 @@ class to_device:
 
     def __init__(self, device, *models):
         self.models = list(filter(lambda x: x is not None, models))
-        self.prev_devices = [x.device if hasattr(x, 'device') else next(x.parameters()).device for x in self.models]
+        self.prev_devices = [
+            x.device if hasattr(x, "device") else next(x.parameters()).device
+            for x in self.models
+        ]
         for x in self.models:
             x.to(device)
 
@@ -84,8 +90,8 @@ def batch_to(dst, *args):
 
 
 def get_flat_params_from(models):
-    if not hasattr(models, '__iter__'):
-        models = (models, )
+    if not hasattr(models, "__iter__"):
+        models = (models,)
     params = []
     for model in models:
         for param in model.parameters():
@@ -100,7 +106,8 @@ def set_flat_params_to(model, flat_params):
     for param in model.parameters():
         flat_size = int(np.prod(list(param.size())))
         param.data.copy_(
-            flat_params[prev_ind:prev_ind + flat_size].view(param.size()))
+            flat_params[prev_ind : prev_ind + flat_size].view(param.size())
+        )
         prev_ind += flat_size
 
 
@@ -119,7 +126,9 @@ def get_flat_grad_from(inputs, grad_grad=False):
     return flat_grad
 
 
-def compute_flat_grad(output, inputs, filter_input_ids=set(), retain_graph=False, create_graph=False):
+def compute_flat_grad(
+    output, inputs, filter_input_ids=set(), retain_graph=False, create_graph=False
+):
     if create_graph:
         retain_graph = True
 
@@ -129,7 +138,9 @@ def compute_flat_grad(output, inputs, filter_input_ids=set(), retain_graph=False
         if i not in filter_input_ids:
             params.append(param)
 
-    grads = torch.autograd.grad(output, params, retain_graph=retain_graph, create_graph=create_graph)
+    grads = torch.autograd.grad(
+        output, params, retain_graph=retain_graph, create_graph=create_graph
+    )
 
     j = 0
     out_grads = []
@@ -148,7 +159,7 @@ def compute_flat_grad(output, inputs, filter_input_ids=set(), retain_graph=False
 
 def set_optimizer_lr(optimizer, lr):
     for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+        param_group["lr"] = lr
 
 
 def filter_state_dict(state_dict, filter_keys):
@@ -160,35 +171,42 @@ def filter_state_dict(state_dict, filter_keys):
 
 
 def get_scheduler(optimizer, policy, nepoch_fix=None, nepoch=None, decay_step=None):
-    if policy == 'lambda':
+    if policy == "lambda":
+
         def lambda_rule(epoch):
             lr_l = 1.0 - max(0, epoch - nepoch_fix) / float(nepoch - nepoch_fix + 1)
             return lr_l
+
         scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda_rule)
 
-    elif policy == 'step':
-        scheduler = lr_scheduler.StepLR(
-            optimizer, step_size=decay_step, gamma=0.1)
-    elif policy == 'plateau':
+    elif policy == "step":
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=decay_step, gamma=0.1)
+    elif policy == "plateau":
         scheduler = lr_scheduler.ReduceLROnPlateau(
-            optimizer, mode='min', factor=0.2, threshold=0.01, patience=5)
+            optimizer, mode="min", factor=0.2, threshold=0.01, patience=5
+        )
     else:
-        return NotImplementedError('learning rate policy [%s] is not implemented', policy)
+        return NotImplementedError(
+            "learning rate policy [%s] is not implemented", policy
+        )
     return scheduler
+
 
 def to_numpy(tensor):
     if torch.is_tensor(tensor):
         return tensor.cpu().numpy()
     else:
         return tensor
-    
+
+
 def to_torch(tensor):
     if torch.is_tensor(tensor):
         return tensor
     else:
         return torch.from_numpy(tensor)
 
-def dict_to_torch(input_dict, dtype = None, device = None, add_dim = False):
+
+def dict_to_torch(input_dict, dtype=None, device=None, add_dim=False):
     if not isinstance(input_dict, dict):
         return None
     out_dict = {}
@@ -204,11 +222,12 @@ def dict_to_torch(input_dict, dtype = None, device = None, add_dim = False):
             if device is not None:
                 value = value.to(device)
             if add_dim:
-                value = value[None, ]
+                value = value[None,]
 
         out_dict[key] = value
 
     return out_dict
+
 
 def dict_to_numpy(input_dict):
     if not isinstance(input_dict, dict):
@@ -224,16 +243,17 @@ def dict_to_numpy(input_dict):
 
     return out_dict
 
+
 def isNpArray(array):
-    return isinstance(array, np.ndarray) and (not array.dtype.char in ['U', 'S'])
+    return isinstance(array, np.ndarray) and (not array.dtype.char in ["U", "S"])
 
 
 def gather_vecs(vec_list, indices):
     res = []
     for vec in vec_list:
         gather_indices = torch.LongTensor(
-            np.tile(indices[:, None], (1, vec.shape[-1]))).to(vec.device)
-        new_vec = torch.gather(vec.reshape(-1, vec.shape[-1]), 0,
-                               gather_indices)
+            np.tile(indices[:, None], (1, vec.shape[-1]))
+        ).to(vec.device)
+        new_vec = torch.gather(vec.reshape(-1, vec.shape[-1]), 0, gather_indices)
         res.append(new_vec)
     return res

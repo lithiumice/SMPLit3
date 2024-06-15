@@ -160,7 +160,7 @@ class MjViewer(MjViewerBasic):
         self._transparent = False  # Make everything transparent.
 
         # this variable is estamated as a running average.
-        
+
         self._hide_overlay = False  # hide the entire overlay.
         self._user_overlay = {}
 
@@ -192,7 +192,9 @@ class MjViewer(MjViewerBasic):
                 frame = self._read_pixels_as_in_window()
                 self._video_queue.put(frame)
             else:
-                self._time_per_render = 0.9 * self._time_per_render + 0.1 * (time.time() - render_start)
+                self._time_per_render = 0.9 * self._time_per_render + 0.1 * (
+                    time.time() - render_start
+                )
 
         self._user_overlay = copy.deepcopy(self._overlay)
         # Render the same frame if paused.
@@ -205,7 +207,9 @@ class MjViewer(MjViewerBasic):
         else:
             # inner_loop runs "_loop_count" times in expectation (where "_loop_count" is a float).
             # Therefore, frames are displayed in the real-time.
-            self._loop_count += (self.sim.model.opt.timestep * self.frame_skip - self.sim_time) / (self._time_per_render * self._run_speed)
+            self._loop_count += (
+                self.sim.model.opt.timestep * self.frame_skip - self.sim_time
+            ) / (self._time_per_render * self._run_speed)
             if self._render_as_fast_as_posible:
                 self._loop_count = 0
             if self._render_every_frame:
@@ -350,13 +354,20 @@ class MjViewer(MjViewerBasic):
         elif key == glfw.KEY_RIGHT and self._paused is not None:
             self._advance_by_one_step = True
             self._paused = True
-        elif key == glfw.KEY_V or (key == glfw.KEY_ESCAPE and self._record_video):  # Records video. Trigers with V or if in progress by ESC.
+        elif key == glfw.KEY_V or (
+            key == glfw.KEY_ESCAPE and self._record_video
+        ):  # Records video. Trigers with V or if in progress by ESC.
             self._record_video = not self._record_video
             if self._record_video:
                 # Rough estimate of fps of the video since rendering speed is unknown.
                 fps = self.video_fps
-                filename = self._video_path % datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
-                self._video_process = Process(target=save_video,args=(self._video_queue, filename, fps),)
+                filename = self._video_path % datetime.now().strftime(
+                    "%Y-%m-%d-%H:%M:%S"
+                )
+                self._video_process = Process(
+                    target=save_video,
+                    args=(self._video_queue, filename, fps),
+                )
                 self._video_process.start()
             if not self._record_video:
                 self._video_queue.put(None)
@@ -369,7 +380,9 @@ class MjViewer(MjViewerBasic):
             self._image_idx += 1
         elif key == glfw.KEY_I:  # drops in debugger.
             print("You can access the simulator by self.sim")
-            import ipdb;ipdb.set_trace()
+            import ipdb
+
+            ipdb.set_trace()
         elif key == glfw.KEY_S:  # Slows down simulation.
             self._run_speed /= 2.0
         elif key == glfw.KEY_F:  # Speeds up simulation.
@@ -380,7 +393,7 @@ class MjViewer(MjViewerBasic):
         elif key == glfw.KEY_D:  # turn off / turn on rendering every frame.
             # self._render_every_frame = not self._render_every_frame
             self._render_as_fast_as_posible = not self._render_as_fast_as_posible
-            
+
         elif key == glfw.KEY_E:
             vopt = self.vopt
             vopt.frame = 1 - vopt.frame
@@ -417,7 +430,9 @@ class MjViewer(MjViewerBasic):
 
 def save_video(queue, filename, fps=30, quality=8):
     print(f"============ Writing video to {filename} fps:{fps} ============")
-    writer = imageio.get_writer(filename, fps=fps, macro_block_size=None, quality=quality)
+    writer = imageio.get_writer(
+        filename, fps=fps, macro_block_size=None, quality=quality
+    )
     while True:
         frame = queue.get()
         if frame is None:

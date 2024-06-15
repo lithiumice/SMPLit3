@@ -12,36 +12,40 @@ import pickle
 import argparse
 import glfw
 
-parser = argparse.ArgumentParser(description='Save expert trajectory')
-parser.add_argument('--render', action='store_true', default=False)
-parser.add_argument('--amc-id', type=str)
-parser.add_argument('--seg-id', type=str)
-parser.add_argument('--ext-id', type=str)
-parser.add_argument('--version-id', type=str, default="2.0")
-parser.add_argument('--mocap-fr', type=int, default=120)
-parser.add_argument('--scale', type=float, default=0.45)
-parser.add_argument('--dt', type=float, default=0.030)
-parser.add_argument('--cyclic', action='store_true', default=False)
-parser.add_argument('--cycle-start', type=int, default=5)
-parser.add_argument('--cycle-end', type=int, default=60)
-parser.add_argument('--offset-z', type=float, default=0.0)
+parser = argparse.ArgumentParser(description="Save expert trajectory")
+parser.add_argument("--render", action="store_true", default=False)
+parser.add_argument("--amc-id", type=str)
+parser.add_argument("--seg-id", type=str)
+parser.add_argument("--ext-id", type=str)
+parser.add_argument("--version-id", type=str, default="2.0")
+parser.add_argument("--mocap-fr", type=int, default=120)
+parser.add_argument("--scale", type=float, default=0.45)
+parser.add_argument("--dt", type=float, default=0.030)
+parser.add_argument("--cyclic", action="store_true", default=False)
+parser.add_argument("--cycle-start", type=int, default=5)
+parser.add_argument("--cycle-end", type=int, default=60)
+parser.add_argument("--offset-z", type=float, default=0.0)
 args = parser.parse_args()
 
-version2model = {'1.0': 'humanoid_pd_v2', '2.0': 'humanoid_pd_v4'}
+version2model = {"1.0": "humanoid_pd_v2", "2.0": "humanoid_pd_v4"}
 
 select = args.seg_id is not None
-model_file = 'assets/mujoco_models/%s.xml' % version2model[args.version_id]
+model_file = "assets/mujoco_models/%s.xml" % version2model[args.version_id]
 model = load_model_from_path(model_file)
 sim = MjSim(model)
 viewer = MjViewer(sim)
 body_qposaddr = get_body_qposaddr(model)
 
-amc_sub = args.amc_id.split('_')[0]
-amc_file = 'assets/amc/%s/%s.amc' % (amc_sub, args.amc_id)
+amc_sub = args.amc_id.split("_")[0]
+amc_file = "assets/amc/%s/%s.amc" % (amc_sub, args.amc_id)
 scale = 1 / args.scale * 0.0254
 poses, bone_addr = load_amc_file(amc_file, scale)
-poses[:, bone_addr['lfoot'][0] + 2] = poses[:, bone_addr['lfoot'][0] + 2].clip(np.deg2rad(-10.0), np.deg2rad(10.0))
-poses[:, bone_addr['rfoot'][0] + 2] = poses[:, bone_addr['lfoot'][0] + 2].clip(np.deg2rad(-10.0), np.deg2rad(10.0))
+poses[:, bone_addr["lfoot"][0] + 2] = poses[:, bone_addr["lfoot"][0] + 2].clip(
+    np.deg2rad(-10.0), np.deg2rad(10.0)
+)
+poses[:, bone_addr["rfoot"][0] + 2] = poses[:, bone_addr["lfoot"][0] + 2].clip(
+    np.deg2rad(-10.0), np.deg2rad(10.0)
+)
 
 poses_samp = interpolated_traj(poses, args.dt, mocap_fr=args.mocap_fr)
 expert_traj = []
@@ -51,16 +55,16 @@ def get_qpos(pose):
     qpos = np.zeros_like(sim.data.qpos)
     for bone_name, ind2 in body_qposaddr.items():
         ind1 = bone_addr[bone_name]
-        if bone_name == 'root':
-            trans = pose[ind1[0]:ind1[0] + 3].copy()
+        if bone_name == "root":
+            trans = pose[ind1[0] : ind1[0] + 3].copy()
             trans[1], trans[2] = -trans[2], trans[1]
-            angles = pose[ind1[0] + 3:ind1[1]].copy()
+            angles = pose[ind1[0] + 3 : ind1[1]].copy()
             quat = quaternion_from_euler(angles[0], angles[1], angles[2])
             quat[2], quat[3] = -quat[3], quat[2]
-            qpos[ind2[0]:ind2[0] + 3] = trans
-            qpos[ind2[0] + 3:ind2[1]] = quat
+            qpos[ind2[0] : ind2[0] + 3] = trans
+            qpos[ind2[0] + 3 : ind2[1]] = quat
         else:
-            qpos[ind2[0]:ind2[1]] = pose[ind1[0]:ind1[1]]
+            qpos[ind2[0] : ind2[1]] = pose[ind1[0] : ind1[1]]
     return qpos
 
 
@@ -146,15 +150,26 @@ if args.render or select:
         if not paused:
             t += 1
 
-print('expert traj shape:', expert_traj.shape)
-expert_meta = {'dt': args.dt, 'mocap_fr': args.mocap_fr, 'scale': args.scale, 'cyclic': args.cyclic, 'cycle_start': args.cycle_start, 'cycle_end': args.cycle_end, 'select': select, 'seg_id': args.seg_id, 'select_start': g_offset + select_start, 'select_end': g_offset + select_end}
+print("expert traj shape:", expert_traj.shape)
+expert_meta = {
+    "dt": args.dt,
+    "mocap_fr": args.mocap_fr,
+    "scale": args.scale,
+    "cyclic": args.cyclic,
+    "cycle_start": args.cycle_start,
+    "cycle_end": args.cycle_end,
+    "select": select,
+    "seg_id": args.seg_id,
+    "select_start": g_offset + select_start,
+    "select_end": g_offset + select_end,
+}
 print(expert_meta)
 """save the expert trajectory"""
 out_id = args.amc_id
 if args.seg_id is not None:
-    out_id += '_%s' % args.seg_id
+    out_id += "_%s" % args.seg_id
 if args.ext_id is not None:
-    out_id += '_%s' % args.ext_id
-expert_traj_file = 'assets/expert_traj/%s/mocap_%s.p' % (args.version_id, out_id)
+    out_id += "_%s" % args.ext_id
+expert_traj_file = "assets/expert_traj/%s/mocap_%s.p" % (args.version_id, out_id)
 os.makedirs(os.path.dirname(expert_traj_file), exist_ok=True)
-pickle.dump((expert_traj, expert_meta), open(expert_traj_file, 'wb'))
+pickle.dump((expert_traj, expert_meta), open(expert_traj_file, "wb"))

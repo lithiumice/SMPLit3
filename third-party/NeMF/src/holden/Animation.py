@@ -43,7 +43,8 @@ class Animation:
             op(self.positions, other.positions),
             op(self.orients, other.orients),
             op(self.offsets, other.offsets),
-            op(self.parents, other.parents))
+            op(self.parents, other.parents),
+        )
 
     def __iop__(self, op, other):
         self.rotations = op(self.roations, other.rotations)
@@ -59,22 +60,41 @@ class Animation:
             op(self.positions),
             op(self.orients),
             op(self.offsets),
-            op(self.parents))
+            op(self.parents),
+        )
 
-    def __add__(self, other): return self.__op__(operator.add, other)
-    def __sub__(self, other): return self.__op__(operator.sub, other)
-    def __mul__(self, other): return self.__op__(operator.mul, other)
-    def __div__(self, other): return self.__op__(operator.div, other)
+    def __add__(self, other):
+        return self.__op__(operator.add, other)
 
-    def __abs__(self): return self.__sop__(operator.abs)
-    def __neg__(self): return self.__sop__(operator.neg)
+    def __sub__(self, other):
+        return self.__op__(operator.sub, other)
 
-    def __iadd__(self, other): return self.__iop__(operator.iadd, other)
-    def __isub__(self, other): return self.__iop__(operator.isub, other)
-    def __imul__(self, other): return self.__iop__(operator.imul, other)
-    def __idiv__(self, other): return self.__iop__(operator.idiv, other)
+    def __mul__(self, other):
+        return self.__op__(operator.mul, other)
 
-    def __len__(self): return len(self.rotations)
+    def __div__(self, other):
+        return self.__op__(operator.div, other)
+
+    def __abs__(self):
+        return self.__sop__(operator.abs)
+
+    def __neg__(self):
+        return self.__sop__(operator.neg)
+
+    def __iadd__(self, other):
+        return self.__iop__(operator.iadd, other)
+
+    def __isub__(self, other):
+        return self.__iop__(operator.isub, other)
+
+    def __imul__(self, other):
+        return self.__iop__(operator.imul, other)
+
+    def __idiv__(self, other):
+        return self.__iop__(operator.idiv, other)
+
+    def __len__(self):
+        return len(self.rotations)
 
     def __getitem__(self, k):
         if isinstance(k, tuple):
@@ -83,14 +103,16 @@ class Animation:
                 self.positions[k],
                 self.orients[k[1:]],
                 self.offsets[k[1:]],
-                self.parents[k[1:]])
+                self.parents[k[1:]],
+            )
         else:
             return Animation(
                 self.rotations[k],
                 self.positions[k],
                 self.orients,
                 self.offsets,
-                self.parents)
+                self.parents,
+            )
 
     def __setitem__(self, k, v):
         if isinstance(k, tuple):
@@ -107,37 +129,51 @@ class Animation:
             self.parents.__setitem__(k, v.parents)
 
     @property
-    def shape(self): return (self.rotations.shape[0], self.rotations.shape[1])
+    def shape(self):
+        return (self.rotations.shape[0], self.rotations.shape[1])
 
-    def copy(self): return Animation(
-        self.rotations.copy(), self.positions.copy(),
-        self.orients.copy(), self.offsets.copy(),
-        self.parents.copy())
+    def copy(self):
+        return Animation(
+            self.rotations.copy(),
+            self.positions.copy(),
+            self.orients.copy(),
+            self.offsets.copy(),
+            self.parents.copy(),
+        )
 
     def repeat(self, *args, **kw):
         return Animation(
             self.rotations.repeat(*args, **kw),
             self.positions.repeat(*args, **kw),
-            self.orients, self.offsets, self.parents)
+            self.orients,
+            self.offsets,
+            self.parents,
+        )
 
     def ravel(self):
-        return np.hstack([
-            self.rotations.log().ravel(),
-            self.positions.ravel(),
-            self.orients.log().ravel(),
-            self.offsets.ravel()])
+        return np.hstack(
+            [
+                self.rotations.log().ravel(),
+                self.positions.ravel(),
+                self.orients.log().ravel(),
+                self.offsets.ravel(),
+            ]
+        )
 
     @classmethod
     def unravel(clas, anim, shape, parents):
         nf, nj = shape
-        rotations = anim[nf*nj*0:nf*nj*3]
-        positions = anim[nf*nj*3:nf*nj*6]
-        orients = anim[nf*nj*6+nj*0:nf*nj*6+nj*3]
-        offsets = anim[nf*nj*6+nj*3:nf*nj*6+nj*6]
+        rotations = anim[nf * nj * 0 : nf * nj * 3]
+        positions = anim[nf * nj * 3 : nf * nj * 6]
+        orients = anim[nf * nj * 6 + nj * 0 : nf * nj * 6 + nj * 3]
+        offsets = anim[nf * nj * 6 + nj * 3 : nf * nj * 6 + nj * 6]
         return cls(
-            Quaternions.exp(rotations), positions,
-            Quaternions.exp(orients), offsets,
-            parents.copy())
+            Quaternions.exp(rotations),
+            positions,
+            Quaternions.exp(orients),
+            offsets,
+            parents.copy(),
+        )
 
 
 """ Maya Interaction """
@@ -171,12 +207,14 @@ def load_to_maya(anim, names=None, radius=0.5):
     import pymel.core as pm
 
     joints = []
-    frames = range(1, len(anim)+1)
+    frames = range(1, len(anim) + 1)
 
     if names is None:
         names = ["joint_" + str(i) for i in range(len(anim.parents))]
 
-    for i, offset, orient, parent, name in zip(range(len(anim.offsets)), anim.offsets, anim.orients, anim.parents, names):
+    for i, offset, orient, parent, name in zip(
+        range(len(anim.offsets)), anim.offsets, anim.orients, anim.parents, names
+    ):
 
         if parent < 0:
             pm.select(d=True)
@@ -218,7 +256,7 @@ def load_to_maya(anim, names=None, radius=0.5):
 
 def load_from_maya(root, start, end):
     """
-    Load Animation Object from Maya Joint Skeleton    
+    Load Animation Object from Maya Joint Skeleton
 
     Parameters
     ----------
@@ -236,7 +274,7 @@ def load_from_maya(root, start, end):
         Loaded animation from maya
 
     names : [str]
-        Joint names from maya   
+        Joint names from maya
     """
 
     import pymel.core as pm
@@ -259,13 +297,13 @@ def load_from_maya(root, start, end):
 
     """ Load Animation """
 
-    eulers = np.zeros((end-start, len(names), 3))
-    positions = np.zeros((end-start, len(names), 3))
-    rotations = Quaternions.id((end-start, len(names)))
+    eulers = np.zeros((end - start, len(names), 3))
+    positions = np.zeros((end - start, len(names), 3))
+    rotations = Quaternions.id((end - start, len(names)))
 
-    for i in range(end-start):
+    for i in range(end - start):
 
-        pm.currentTime(start+i+1, u=True)
+        pm.currentTime(start + i + 1, u=True)
 
         scales = {}
 
@@ -273,15 +311,15 @@ def load_from_maya(root, start, end):
 
             node = pm.PyNode(name)
 
-            if i == 0 and pm.hasAttr(node, 'jointOrient'):
+            if i == 0 and pm.hasAttr(node, "jointOrient"):
                 ort = node.getOrientation()
                 orients[j] = Quaternions(np.array([ort[3], ort[0], ort[1], ort[2]]))
 
-            if pm.hasAttr(node, 'rotate'):
+            if pm.hasAttr(node, "rotate"):
                 eulers[i, j] = np.radians(pm.xform(node, q=True, rotation=True))
-            if pm.hasAttr(node, 'translate'):
+            if pm.hasAttr(node, "translate"):
                 positions[i, j] = pm.xform(node, q=True, translation=True)
-            if pm.hasAttr(node, 'scale'):
+            if pm.hasAttr(node, "scale"):
                 scales[j] = pm.xform(node, q=True, scale=True, relative=True)
 
         for j in scales:
@@ -291,13 +329,16 @@ def load_from_maya(root, start, end):
 
         positions[i, 0] = pm.xform(root, q=True, translation=True, worldSpace=True)
 
-    rotations = orients[np.newaxis] * Quaternions.from_euler(eulers, order='xyz', world=True)
+    rotations = orients[np.newaxis] * Quaternions.from_euler(
+        eulers, order="xyz", world=True
+    )
 
     """ Done """
 
     pm.currentTime(original_time)
 
     return Animation(rotations, positions, orients, offsets, parents), names
+
 
 # local transformation matrices
 
@@ -327,8 +368,12 @@ def transforms_local(anim):
     """
 
     transforms = anim.rotations.transforms()
-    transforms = np.concatenate([transforms, np.zeros(transforms.shape[:2] + (3, 1))], axis=-1)
-    transforms = np.concatenate([transforms, np.zeros(transforms.shape[:2] + (1, 4))], axis=-2)
+    transforms = np.concatenate(
+        [transforms, np.zeros(transforms.shape[:2] + (3, 1))], axis=-1
+    )
+    transforms = np.concatenate(
+        [transforms, np.zeros(transforms.shape[:2] + (1, 4))], axis=-2
+    )
     # the last column is filled with the joint positions!
     transforms[:, :, 0:3, 3] = anim.positions
     transforms[:, :, 3:4, 3] = 1.0
@@ -381,7 +426,7 @@ def transforms_blank(anim):
     -------
 
     transforms : (F, J, 4, 4) ndarray
-        Array of identity transforms for 
+        Array of identity transforms for
         each frame F and joint J
     """
 
@@ -391,6 +436,7 @@ def transforms_blank(anim):
     ts[:, :, 2, 2] = 1.0
     ts[:, :, 3, 3] = 1.0
     return ts
+
 
 # global transformation matrices
 
@@ -415,7 +461,7 @@ def transforms_global(anim):
     ------
 
     transforms : (F, J, 4, 4) ndarray
-        Array of global transforms for 
+        Array of global transforms for
         each frame F and joint J
     """
 
@@ -430,6 +476,7 @@ def transforms_global(anim):
         globals[:, i] = transforms_multiply(globals[:, anim.parents[i]], locals[:, i])
 
     return globals
+
 
 # !!! useful!
 
@@ -451,7 +498,7 @@ def positions_global(anim):
     -------
 
     positions : (F, J, 3) ndarray
-        Positions for every frame F 
+        Positions for every frame F
         and joint position J
     """
 
@@ -483,7 +530,7 @@ def rotations_global(anim):
     -------
 
     points : (F, J) Quaternions
-        global rotations for every frame F 
+        global rotations for every frame F
         and joint J
     """
 
@@ -517,13 +564,13 @@ def rotations_load_to_maya(rotations, positions, names=None):
     Parameters
     ----------
 
-    rotations : (F, J) Quaternions 
+    rotations : (F, J) Quaternions
         array of rotations to load
         into the scene where
             F = number of frames
             J = number of joints
 
-    positions : (F, J, 3) ndarray 
+    positions : (F, J, 3) ndarray
         array of positions to load
         rotation axis at where:
             F = number of frames
@@ -545,15 +592,16 @@ def rotations_load_to_maya(rotations, positions, names=None):
         names = ["joint_" + str(i) for i in range(rotations.shape[1])]
 
     maxis = []
-    frames = range(1, len(positions)+1)
+    frames = range(1, len(positions) + 1)
     for i, name in enumerate(names):
 
         name = name + "_axis"
         axis = pm.group(
-            pm.curve(p=[(0, 0, 0), (1, 0, 0)], d=1, n=name+'_axis_x'),
-            pm.curve(p=[(0, 0, 0), (0, 1, 0)], d=1, n=name+'_axis_y'),
-            pm.curve(p=[(0, 0, 0), (0, 0, 1)], d=1, n=name+'_axis_z'),
-            n=name)
+            pm.curve(p=[(0, 0, 0), (1, 0, 0)], d=1, n=name + "_axis_x"),
+            pm.curve(p=[(0, 0, 0), (0, 1, 0)], d=1, n=name + "_axis_y"),
+            pm.curve(p=[(0, 0, 0), (0, 0, 1)], d=1, n=name + "_axis_z"),
+            n=name,
+        )
 
         axis.rotatePivot.set((0, 0, 0))
         axis.scalePivot.set((0, 0, 0))
@@ -591,7 +639,7 @@ def rotations_load_to_maya(rotations, positions, names=None):
 
         maxis.append(axis)
 
-    return pm.group(*maxis, n='RotationAnimation')
+    return pm.group(*maxis, n="RotationAnimation")
 
 
 """ Offsets & Orients """
@@ -615,8 +663,12 @@ def orients_global(anim):
 def offsets_transforms_local(anim):
 
     transforms = anim.orients[np.newaxis].transforms()
-    transforms = np.concatenate([transforms, np.zeros(transforms.shape[:2] + (3, 1))], axis=-1)
-    transforms = np.concatenate([transforms, np.zeros(transforms.shape[:2] + (1, 4))], axis=-2)
+    transforms = np.concatenate(
+        [transforms, np.zeros(transforms.shape[:2] + (3, 1))], axis=-1
+    )
+    transforms = np.concatenate(
+        [transforms, np.zeros(transforms.shape[:2] + (1, 4))], axis=-2
+    )
     transforms[:, :, 0:3, 3] = anim.offsets[np.newaxis]
     transforms[:, :, 3:4, 3] = 1.0
     return transforms
@@ -646,11 +698,11 @@ def offsets_global(anim):
 
 
 def offset_lengths(anim):
-    return np.sum(anim.offsets[1:]**2.0, axis=1)**0.5
+    return np.sum(anim.offsets[1:] ** 2.0, axis=1) ** 0.5
 
 
 def position_lengths(anim):
-    return np.sum(anim.positions[:, 1:]**2.0, axis=2)**0.5
+    return np.sum(anim.positions[:, 1:] ** 2.0, axis=2) ** 0.5
 
 
 """ Skinning """
@@ -659,8 +711,8 @@ def position_lengths(anim):
 def skin(anim, rest, weights, mesh, maxjoints=4):
 
     full_transforms = transforms_multiply(
-        transforms_global(anim),
-        transforms_inv(transforms_global(rest[0:1])))
+        transforms_global(anim), transforms_inv(transforms_global(rest[0:1]))
+    )
 
     weightids = np.argsort(-weights, axis=1)[:, :maxjoints]
     weightvls = np.array(list(map(lambda w, i: w[i], weights, weightids)))

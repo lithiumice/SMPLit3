@@ -11,16 +11,16 @@ import replicate
 import joblib
 
 model = replicate.models.get("daanelson/motion_diffusion_model")
-version = model.versions.get("3e2218c061c18b2a7388dd91b6677b6515529d4db4d719a6513a23522d23cfa7")
+version = model.versions.get(
+    "3e2218c061c18b2a7388dd91b6677b6515529d4db4d719a6513a23522d23cfa7"
+)
 
 # https://replicate.com/daanelson/motion_diffusion_model/versions/3e2218c061c18b2a7388dd91b6677b6515529d4db4d719a6513a23522d23cfa7#input
 inputs = {
     # Prompt
-    'prompt': "the person walked forward and is picking up his toolbox.",
-
+    "prompt": "the person walked forward and is picking up his toolbox.",
     # How many
-    'num_repetitions': 3,
-
+    "num_repetitions": 3,
     # Choose the format of the output, either an animation or a json file
     # of the animation data.                The json format is: {"thetas":
     # [...], "root_translation": [...], "joint_map": [...]}, where
@@ -30,7 +30,7 @@ inputs = {
     # mapping the SMPL joint index to the                corresponding
     # HumanIK joint name
     # 'output_format': "json_file",
-    'output_format': "animation",
+    "output_format": "animation",
 }
 
 # https://replicate.com/daanelson/motion_diffusion_model/versions/3e2218c061c18b2a7388dd91b6677b6515529d4db4d719a6513a23522d23cfa7#output-schema

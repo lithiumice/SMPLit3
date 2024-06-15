@@ -15,7 +15,12 @@ class DiagGaussian(Normal):
         loc0 = self.loc.detach()
         scale0 = self.scale.detach()
         log_scale0 = log_scale1.detach()
-        kl = log_scale1 - log_scale0 + (scale0.pow(2) + (loc0 - loc1).pow(2)) / (2.0 * scale1.pow(2)) - 0.5
+        kl = (
+            log_scale1
+            - log_scale0
+            + (scale0.pow(2) + (loc0 - loc1).pow(2)) / (2.0 * scale1.pow(2))
+            - 0.5
+        )
         return kl.sum(1, keepdim=True)
 
     def log_prob(self, value):
@@ -37,7 +42,12 @@ class Categorical(TorchCategorical):
         loc0 = self.loc.detach()
         scale0 = self.scale.detach()
         log_scale0 = log_scale1.detach()
-        kl = log_scale1 - log_scale0 + (scale0.pow(2) + (loc0 - loc1).pow(2)) / (2.0 * scale1.pow(2)) - 0.5
+        kl = (
+            log_scale1
+            - log_scale0
+            + (scale0.pow(2) + (loc0 - loc1).pow(2)) / (2.0 * scale1.pow(2))
+            - 0.5
+        )
         return kl.sum(1, keepdim=True)
 
     def log_prob(self, value):

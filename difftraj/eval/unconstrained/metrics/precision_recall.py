@@ -9,11 +9,12 @@ from tqdm import tqdm
 # self.cpu = args.cpu
 # self.data_size = args.data_size
 
+
 def precision_and_recall(generated_features, real_features):
     k = 3
 
     data_num = min(len(generated_features), len(real_features))
-    print(f'data num: {data_num}')
+    print(f"data num: {data_num}")
 
     if data_num <= 0:
         print("there is no data")
@@ -27,7 +28,8 @@ def precision_and_recall(generated_features, real_features):
 
     return precision, recall
 
-def manifold_estimate( A_features, B_features, k):
+
+def manifold_estimate(A_features, B_features, k):
     A_features = list(A_features)
     B_features = list(B_features)
     KNN_list_in_A = {}
@@ -51,5 +53,3 @@ def manifold_estimate( A_features, B_features, k):
                 break
 
     return n / len(B_features)
-
-

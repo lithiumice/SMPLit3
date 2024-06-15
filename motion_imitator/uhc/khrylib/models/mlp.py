@@ -3,15 +3,15 @@ import torch
 
 
 class MLP(nn.Module):
-    def __init__(self, input_dim, hidden_dims=(128, 128), activation='tanh'):
+    def __init__(self, input_dim, hidden_dims=(128, 128), activation="tanh"):
         super().__init__()
-        if activation == 'tanh':
+        if activation == "tanh":
             self.activation = torch.tanh
-        elif activation == 'relu':
+        elif activation == "relu":
             self.activation = torch.relu
-        elif activation == 'sigmoid':
+        elif activation == "sigmoid":
             self.activation = torch.sigmoid
-        elif activation == 'gelu':
+        elif activation == "gelu":
             self.activation = torch.nn.GELU()
 
         self.out_dim = hidden_dims[-1]

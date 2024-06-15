@@ -39,15 +39,24 @@ import torch
 
 SIM_TIMESTEP = 1.0 / 60.0
 
+
 def set_np_formatting():
-    np.set_printoptions(edgeitems=30, infstr='inf',
-                        linewidth=4000, nanstr='nan', precision=2,
-                        suppress=False, threshold=10000, formatter=None)
+    np.set_printoptions(
+        edgeitems=30,
+        infstr="inf",
+        linewidth=4000,
+        nanstr="nan",
+        precision=2,
+        suppress=False,
+        threshold=10000,
+        formatter=None,
+    )
 
 
 def warn_task_name():
     raise Exception(
-        "Unrecognized task!\nTask should be one of: [BallBalance, Cartpole, CartpoleYUp, Ant, Humanoid, Anymal, FrankaCabinet, Quadcopter, ShadowHand, ShadowHandLSTM, ShadowHandFFOpenAI, ShadowHandFFOpenAITest, ShadowHandOpenAI, ShadowHandOpenAITest, Ingenuity]")
+        "Unrecognized task!\nTask should be one of: [BallBalance, Cartpole, CartpoleYUp, Ant, Humanoid, Anymal, FrankaCabinet, Quadcopter, ShadowHand, ShadowHandLSTM, ShadowHandFFOpenAI, ShadowHandFFOpenAITest, ShadowHandOpenAI, ShadowHandOpenAITest, Ingenuity]"
+    )
 
 
 def set_seed(seed, torch_deterministic=False):
@@ -60,13 +69,13 @@ def set_seed(seed, torch_deterministic=False):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
     if torch_deterministic:
         # refer to https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
-        os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
         torch.set_deterministic(True)
@@ -78,10 +87,10 @@ def set_seed(seed, torch_deterministic=False):
 
 
 def load_cfg(args):
-    with open(os.path.join(os.getcwd(), args.cfg_train), 'r') as f:
+    with open(os.path.join(os.getcwd(), args.cfg_train), "r") as f:
         cfg_train = yaml.load(f, Loader=yaml.SafeLoader)
 
-    with open(os.path.join(os.getcwd(), args.cfg_env), 'r') as f:
+    with open(os.path.join(os.getcwd(), args.cfg_env), "r") as f:
         cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
     # Override number of environments if passed on the command line
@@ -108,32 +117,37 @@ def load_cfg(args):
     if args.torch_deterministic:
         cfg_train["params"]["torch_deterministic"] = True
 
-    exp_name = cfg_train["params"]["config"]['name']
+    exp_name = cfg_train["params"]["config"]["name"]
 
-    if args.experiment != 'Base':
+    if args.experiment != "Base":
         if args.metadata:
-            exp_name = "{}_{}_{}_{}".format(args.experiment, args.task_type, args.device, str(args.physics_engine).split("_")[-1])
+            exp_name = "{}_{}_{}_{}".format(
+                args.experiment,
+                args.task_type,
+                args.device,
+                str(args.physics_engine).split("_")[-1],
+            )
 
             if cfg["task"]["randomize"]:
                 exp_name += "_DR"
         else:
-             exp_name = args.experiment
+            exp_name = args.experiment
 
     # Override config name
-    cfg_train["params"]["config"]['name'] = exp_name
+    cfg_train["params"]["config"]["name"] = exp_name
 
     if args.resume > 0:
         cfg_train["params"]["load_checkpoint"] = True
 
     if args.checkpoint != "Base":
         cfg_train["params"]["load_path"] = args.checkpoint
-        
+
     if args.llc_checkpoint != "":
         cfg_train["params"]["config"]["llc_checkpoint"] = args.llc_checkpoint
 
     # Set maximum number of training iterations (epochs)
     if args.max_iterations > 0:
-        cfg_train["params"]["config"]['max_epochs'] = args.max_iterations
+        cfg_train["params"]["config"]["max_epochs"] = args.max_iterations
 
     cfg_train["params"]["config"]["num_actors"] = cfg["env"]["numEnvs"]
 
@@ -185,68 +199,182 @@ def parse_sim_params(args, cfg, cfg_train):
 
 def get_args(benchmark=False):
     custom_parameters = [
-        {"name": "--test", "action": "store_true", "default": False,
-            "help": "Run trained policy, no training"},
-        {"name": "--play", "action": "store_true", "default": False,
-            "help": "Run trained policy, the same as test, can be used only by rl_games RL library"},
-        {"name": "--resume", "type": int, "default": 0,
-            "help": "Resume training or start testing from a checkpoint"},
-        {"name": "--checkpoint", "type": str, "default": "Base",
-            "help": "Path to the saved weights, only for rl_games RL library"},
-        {"name": "--headless", "action": "store_true", "default": False,
-            "help": "Force display off at all times"},
-        {"name": "--horovod", "action": "store_true", "default": False,
-            "help": "Use horovod for multi-gpu training, have effect only with rl_games RL library"},
-        {"name": "--task", "type": str, "default": "Humanoid",
-            "help": "Can be BallBalance, Cartpole, CartpoleYUp, Ant, Humanoid, Anymal, FrankaCabinet, Quadcopter, ShadowHand, Ingenuity"},
-        {"name": "--task_type", "type": str,
-            "default": "Python", "help": "Choose Python or C++"},
-        {"name": "--rl_device", "type": str, "default": "cuda:0",
-            "help": "Choose CPU or GPU device for inferencing policy network"},
+        {
+            "name": "--test",
+            "action": "store_true",
+            "default": False,
+            "help": "Run trained policy, no training",
+        },
+        {
+            "name": "--play",
+            "action": "store_true",
+            "default": False,
+            "help": "Run trained policy, the same as test, can be used only by rl_games RL library",
+        },
+        {
+            "name": "--resume",
+            "type": int,
+            "default": 0,
+            "help": "Resume training or start testing from a checkpoint",
+        },
+        {
+            "name": "--checkpoint",
+            "type": str,
+            "default": "Base",
+            "help": "Path to the saved weights, only for rl_games RL library",
+        },
+        {
+            "name": "--headless",
+            "action": "store_true",
+            "default": False,
+            "help": "Force display off at all times",
+        },
+        {
+            "name": "--horovod",
+            "action": "store_true",
+            "default": False,
+            "help": "Use horovod for multi-gpu training, have effect only with rl_games RL library",
+        },
+        {
+            "name": "--task",
+            "type": str,
+            "default": "Humanoid",
+            "help": "Can be BallBalance, Cartpole, CartpoleYUp, Ant, Humanoid, Anymal, FrankaCabinet, Quadcopter, ShadowHand, Ingenuity",
+        },
+        {
+            "name": "--task_type",
+            "type": str,
+            "default": "Python",
+            "help": "Choose Python or C++",
+        },
+        {
+            "name": "--rl_device",
+            "type": str,
+            "default": "cuda:0",
+            "help": "Choose CPU or GPU device for inferencing policy network",
+        },
         {"name": "--logdir", "type": str, "default": "logs/"},
-        {"name": "--experiment", "type": str, "default": "Base",
-            "help": "Experiment name. If used with --metadata flag an additional information about physics engine, sim device, pipeline and domain randomization will be added to the name"},
-        {"name": "--metadata", "action": "store_true", "default": False,
-            "help": "Requires --experiment flag, adds physics engine, sim device, pipeline info and if domain randomization is used to the experiment name provided by user"},
-        {"name": "--cfg_env", "type": str, "default": "Base", "help": "Environment configuration file (.yaml)"},
-        {"name": "--cfg_train", "type": str, "default": "Base", "help": "Training configuration file (.yaml)"},
-        {"name": "--motion_file", "type": str,
-            "default": "", "help": "Specify reference motion file"},
-        {"name": "--num_envs", "type": int, "default": 0,
-            "help": "Number of environments to create - override config file"},
-        {"name": "--episode_length", "type": int, "default": 0,
-            "help": "Episode length, by default is read from yaml config"},
+        {
+            "name": "--experiment",
+            "type": str,
+            "default": "Base",
+            "help": "Experiment name. If used with --metadata flag an additional information about physics engine, sim device, pipeline and domain randomization will be added to the name",
+        },
+        {
+            "name": "--metadata",
+            "action": "store_true",
+            "default": False,
+            "help": "Requires --experiment flag, adds physics engine, sim device, pipeline info and if domain randomization is used to the experiment name provided by user",
+        },
+        {
+            "name": "--cfg_env",
+            "type": str,
+            "default": "Base",
+            "help": "Environment configuration file (.yaml)",
+        },
+        {
+            "name": "--cfg_train",
+            "type": str,
+            "default": "Base",
+            "help": "Training configuration file (.yaml)",
+        },
+        {
+            "name": "--motion_file",
+            "type": str,
+            "default": "",
+            "help": "Specify reference motion file",
+        },
+        {
+            "name": "--num_envs",
+            "type": int,
+            "default": 0,
+            "help": "Number of environments to create - override config file",
+        },
+        {
+            "name": "--episode_length",
+            "type": int,
+            "default": 0,
+            "help": "Episode length, by default is read from yaml config",
+        },
         {"name": "--seed", "type": int, "help": "Random seed"},
-        {"name": "--max_iterations", "type": int, "default": 0,
-            "help": "Set a maximum number of training iterations"},
-        {"name": "--horizon_length", "type": int, "default": -1,
-            "help": "Set number of simulation steps per 1 PPO iteration. Supported only by rl_games. If not -1 overrides the config settings."},
-        {"name": "--minibatch_size", "type": int, "default": -1,
-            "help": "Set batch size for PPO optimization step. Supported only by rl_games. If not -1 overrides the config settings."},
-        {"name": "--randomize", "action": "store_true", "default": False,
-            "help": "Apply physics domain randomization"},
-        {"name": "--torch_deterministic", "action": "store_true", "default": False,
-            "help": "Apply additional PyTorch settings for more deterministic behaviour"},
-        {"name": "--output_path", "type": str, "default": "output/", "help": "Specify output directory"},
-        {"name": "--llc_checkpoint", "type": str, "default": "",
-            "help": "Path to the saved weights for the low-level controller of an HRL agent."}]
+        {
+            "name": "--max_iterations",
+            "type": int,
+            "default": 0,
+            "help": "Set a maximum number of training iterations",
+        },
+        {
+            "name": "--horizon_length",
+            "type": int,
+            "default": -1,
+            "help": "Set number of simulation steps per 1 PPO iteration. Supported only by rl_games. If not -1 overrides the config settings.",
+        },
+        {
+            "name": "--minibatch_size",
+            "type": int,
+            "default": -1,
+            "help": "Set batch size for PPO optimization step. Supported only by rl_games. If not -1 overrides the config settings.",
+        },
+        {
+            "name": "--randomize",
+            "action": "store_true",
+            "default": False,
+            "help": "Apply physics domain randomization",
+        },
+        {
+            "name": "--torch_deterministic",
+            "action": "store_true",
+            "default": False,
+            "help": "Apply additional PyTorch settings for more deterministic behaviour",
+        },
+        {
+            "name": "--output_path",
+            "type": str,
+            "default": "output/",
+            "help": "Specify output directory",
+        },
+        {
+            "name": "--llc_checkpoint",
+            "type": str,
+            "default": "",
+            "help": "Path to the saved weights for the low-level controller of an HRL agent.",
+        },
+    ]
 
     if benchmark:
-        custom_parameters += [{"name": "--num_proc", "type": int, "default": 1, "help": "Number of child processes to launch"},
-                              {"name": "--random_actions", "action": "store_true",
-                                  "help": "Run benchmark with random actions instead of inferencing"},
-                              {"name": "--bench_len", "type": int, "default": 10,
-                                  "help": "Number of timing reports"},
-                              {"name": "--bench_file", "action": "store", "help": "Filename to store benchmark results"}]
+        custom_parameters += [
+            {
+                "name": "--num_proc",
+                "type": int,
+                "default": 1,
+                "help": "Number of child processes to launch",
+            },
+            {
+                "name": "--random_actions",
+                "action": "store_true",
+                "help": "Run benchmark with random actions instead of inferencing",
+            },
+            {
+                "name": "--bench_len",
+                "type": int,
+                "default": 10,
+                "help": "Number of timing reports",
+            },
+            {
+                "name": "--bench_file",
+                "action": "store",
+                "help": "Filename to store benchmark results",
+            },
+        ]
 
     # parse arguments
     args = gymutil.parse_arguments(
-        description="RL Policy",
-        custom_parameters=custom_parameters)
+        description="RL Policy", custom_parameters=custom_parameters
+    )
 
     # allignment with examples
     args.device_id = args.compute_device_id
-    args.device = args.sim_device_type if args.use_gpu_pipeline else 'cpu'
+    args.device = args.sim_device_type if args.use_gpu_pipeline else "cpu"
 
     if args.test:
         args.play = args.test

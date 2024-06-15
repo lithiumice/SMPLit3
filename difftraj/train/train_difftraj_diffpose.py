@@ -13,7 +13,11 @@ from train.training_loop import TrainLoop
 from data_loaders.get_data import get_dataset_loader
 from utils.model_util import create_gaussian_diffusion
 from data_loaders.get_data import get_model_args, collate
-from train.train_platforms import ClearmlPlatform, TensorboardPlatform, NoPlatform  # required for the eval operation
+from train.train_platforms import (
+    ClearmlPlatform,
+    TensorboardPlatform,
+    NoPlatform,
+)  # required for the eval operation
 
 
 def main():

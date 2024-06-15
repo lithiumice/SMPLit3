@@ -11,11 +11,13 @@ def try_statement(func):
             func(*args, **kwargs)
         except:
             import traceback
+
             traceback.print_exc()
-    return wrapper    
+
+    return wrapper
 
 
-# convert a function into recursive style to 
+# convert a function into recursive style to
 # handle nested dict/list/tuple variables
 def make_recursive_func(func):
     def wrapper(vars):
@@ -27,6 +29,7 @@ def make_recursive_func(func):
             return {k: wrapper(v) for k, v in vars.items()}
         else:
             return func(vars)
+
     return wrapper
 
 
@@ -51,15 +54,17 @@ def tensor2numpy(vars):
         return vars
         # raise NotImplementedError("invalid input type {} for tensor2numpy".format(type(vars)))
 
+
 @make_recursive_func
 def to_tensor(vars):
     if isinstance(vars, np.ndarray):
         return torch.from_numpy(vars)
-    elif isinstance(vars, (int,float)):
+    elif isinstance(vars, (int, float)):
         return torch.tensor(vars)
     else:
         return vars
-    
+
+
 @make_recursive_func
 def to_detach(vars):
     if isinstance(vars, np.ndarray):
@@ -68,7 +73,8 @@ def to_detach(vars):
         return vars.detach()
     else:
         return vars
-    
+
+
 @make_recursive_func
 def tocuda(vars):
     if isinstance(vars, torch.Tensor):

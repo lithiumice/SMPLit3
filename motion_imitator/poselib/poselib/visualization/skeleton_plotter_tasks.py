@@ -45,8 +45,7 @@ class Draw3DSkeletonState(BasePlotterTask):
 
     @staticmethod
     def _get_lines_and_dots(skeleton_state):
-        """Get all the lines and dots needed to draw the skeleton state
-        """
+        """Get all the lines and dots needed to draw the skeleton state"""
         assert (
             len(skeleton_state.tensor.shape) == 1
         ), "the state has to be zero dimensional"
@@ -158,8 +157,7 @@ class Draw3DSkeletonMotion(BasePlotterTask):
 
     @staticmethod
     def _get_vel_and_avel(skeleton_motion):
-        """Get all the velocity and angular velocity lines
-        """
+        """Get all the velocity and angular velocity lines"""
         pos = skeleton_motion.global_translation.numpy()
         vel = skeleton_motion.global_velocity.numpy()
         avel = skeleton_motion.global_angular_velocity.numpy()

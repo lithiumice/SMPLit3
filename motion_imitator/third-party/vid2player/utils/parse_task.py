@@ -15,8 +15,8 @@ import numpy as np
 
 
 def warn_task_name():
-    raise Exception(
-        "Unrecognized task!\nTask should be one of: [MVAERecover]")
+    raise Exception("Unrecognized task!\nTask should be one of: [MVAERecover]")
+
 
 def parse_task(args, cfg, cfg_train, sim_params):
 
@@ -29,16 +29,22 @@ def parse_task(args, cfg, cfg_train, sim_params):
     cfg_task["seed"] = cfg["seed"]
 
     try:
-        task = eval(cfg['name'])(
+        task = eval(cfg["name"])(
             cfg=cfg,
             sim_params=sim_params,
             physics_engine=args.physics_engine,
             device_type=args.device,
             device_id=device_id,
-            headless=args.headless)
+            headless=args.headless,
+        )
     except NameError as e:
         print(e)
         warn_task_name()
-    env = VecTaskPythonWrapper(task, rl_device, cfg_train['params']['config'].get("clip_observations", np.inf), cfg_train['params']['config'].get("clip_actions_val", np.inf))
+    env = VecTaskPythonWrapper(
+        task,
+        rl_device,
+        cfg_train["params"]["config"].get("clip_observations", np.inf),
+        cfg_train["params"]["config"].get("clip_actions_val", np.inf),
+    )
 
     return task, env

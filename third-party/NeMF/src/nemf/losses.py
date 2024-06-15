@@ -7,7 +7,7 @@ class GeodesicLoss(nn.Module):
         super(GeodesicLoss, self).__init__()
 
     def compute_geodesic_distance(self, m1, m2, epsilon=1e-7):
-        """ Compute the geodesic distance between two rotation matrices.
+        """Compute the geodesic distance between two rotation matrices.
         Args:
             m1, m2: Two rotation matrices with the shape (batch x 3 x 3).
         Returns:
@@ -25,13 +25,13 @@ class GeodesicLoss(nn.Module):
 
         return theta
 
-    def __call__(self, m1, m2, reduction='mean'):
+    def __call__(self, m1, m2, reduction="mean"):
         loss = self.compute_geodesic_distance(m1, m2)
 
-        if reduction == 'mean':
+        if reduction == "mean":
             return loss.mean()
-        elif reduction == 'none':
+        elif reduction == "none":
             return loss
         else:
-            raise RuntimeError(f'unsupported reduction: {reduction}')
-            raise RuntimeError(f'unsupported reduction: {reduction}')
+            raise RuntimeError(f"unsupported reduction: {reduction}")
+            raise RuntimeError(f"unsupported reduction: {reduction}")

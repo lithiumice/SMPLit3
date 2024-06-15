@@ -14,12 +14,12 @@ class Affine(nn.Module):
         if scale:
             self.scale = nn.Parameter(torch.ones(num_parameters) * scale_init)
         else:
-            self.register_parameter('scale', None)
+            self.register_parameter("scale", None)
 
         if bias:
             self.bias = nn.Parameter(torch.zeros(num_parameters))
         else:
-            self.register_parameter('bias', None)
+            self.register_parameter("bias", None)
 
     def forward(self, input):
         output = input
@@ -60,32 +60,60 @@ class BatchStatistics(nn.Module):
 
 
 class ResidualBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, residual_ratio, activation, batch_statistics=False, last_layer=False):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride,
+        padding,
+        residual_ratio,
+        activation,
+        batch_statistics=False,
+        last_layer=False,
+    ):
         super(ResidualBlock, self).__init__()
 
         self.residual_ratio = residual_ratio
         self.shortcut_ratio = 1 - residual_ratio
 
         residual = []
-        residual.append(nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding))
+        residual.append(
+            nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding)
+        )
         if batch_statistics:
             residual.append(BatchStatistics(out_channels))
         if not last_layer:
-            residual.append(nn.PReLU() if activation == 'relu' else nn.Tanh())
+            residual.append(nn.PReLU() if activation == "relu" else nn.Tanh())
         self.residual = nn.Sequential(*residual)
 
         self.shortcut = nn.Sequential(
             nn.AvgPool1d(kernel_size=2) if stride == 2 else nn.Sequential(),
             nn.Conv1d(in_channels, out_channels, kernel_size=1, stride=1, padding=0),
-            BatchStatistics(out_channels) if (in_channels != out_channels and batch_statistics is True) else nn.Sequential()
+            (
+                BatchStatistics(out_channels)
+                if (in_channels != out_channels and batch_statistics is True)
+                else nn.Sequential()
+            ),
         )
 
     def forward(self, input):
-        return self.residual(input).mul(self.residual_ratio) + self.shortcut(input).mul(self.shortcut_ratio)
+        return self.residual(input).mul(self.residual_ratio) + self.shortcut(input).mul(
+            self.shortcut_ratio
+        )
 
 
 class ResidualBlockTranspose(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, residual_ratio, activation):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride,
+        padding,
+        residual_ratio,
+        activation,
+    ):
         super(ResidualBlockTranspose, self).__init__()
 
         self.residual_ratio = residual_ratio
@@ -93,20 +121,43 @@ class ResidualBlockTranspose(nn.Module):
 
         self.residual = nn.Sequential(
             nn.ConvTranspose1d(in_channels, out_channels, kernel_size, stride, padding),
-            nn.PReLU() if activation == 'relu' else nn.Tanh()
+            nn.PReLU() if activation == "relu" else nn.Tanh(),
         )
 
         self.shortcut = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='linear', align_corners=False) if stride == 2 else nn.Sequential(),
-            nn.Conv1d(in_channels, out_channels, kernel_size=1, stride=1, padding=0)
+            (
+                nn.Upsample(scale_factor=2, mode="linear", align_corners=False)
+                if stride == 2
+                else nn.Sequential()
+            ),
+            nn.Conv1d(in_channels, out_channels, kernel_size=1, stride=1, padding=0),
         )
 
     def forward(self, input):
-        return self.residual(input).mul(self.residual_ratio) + self.shortcut(input).mul(self.shortcut_ratio)
+        return self.residual(input).mul(self.residual_ratio) + self.shortcut(input).mul(
+            self.shortcut_ratio
+        )
 
 
 class SkeletonResidual(nn.Module):
-    def __init__(self, topology, neighbour_list, joint_num, in_channels, out_channels, kernel_size, stride, padding, padding_mode, bias, extra_conv, pooling_mode, activation, last_pool, use_group_norm=True):
+    def __init__(
+        self,
+        topology,
+        neighbour_list,
+        joint_num,
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride,
+        padding,
+        padding_mode,
+        bias,
+        extra_conv,
+        pooling_mode,
+        activation,
+        last_pool,
+        use_group_norm=True,
+    ):
         super(SkeletonResidual, self).__init__()
 
         kernel_even = False if kernel_size % 2 else True
@@ -114,32 +165,66 @@ class SkeletonResidual(nn.Module):
         seq = []
         for _ in range(extra_conv):
             # (T, J, D) => (T, J, D)
-            seq.append(SkeletonConv(neighbour_list, in_channels=in_channels, out_channels=in_channels,
-                                    joint_num=joint_num, kernel_size=kernel_size - 1 if kernel_even else kernel_size,
-                                    stride=1,
-                                    padding=padding, padding_mode=padding_mode, bias=bias))
-            seq.append(nn.PReLU() if activation == 'relu' else nn.Tanh())
+            seq.append(
+                SkeletonConv(
+                    neighbour_list,
+                    in_channels=in_channels,
+                    out_channels=in_channels,
+                    joint_num=joint_num,
+                    kernel_size=kernel_size - 1 if kernel_even else kernel_size,
+                    stride=1,
+                    padding=padding,
+                    padding_mode=padding_mode,
+                    bias=bias,
+                )
+            )
+            seq.append(nn.PReLU() if activation == "relu" else nn.Tanh())
         # (T, J, D) => (T/2, J, 2D)
-        seq.append(SkeletonConv(neighbour_list, in_channels=in_channels, out_channels=out_channels,
-                                joint_num=joint_num, kernel_size=kernel_size, stride=stride,
-                                padding=padding, padding_mode=padding_mode, bias=bias, add_offset=False))
+        seq.append(
+            SkeletonConv(
+                neighbour_list,
+                in_channels=in_channels,
+                out_channels=out_channels,
+                joint_num=joint_num,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                padding_mode=padding_mode,
+                bias=bias,
+                add_offset=False,
+            )
+        )
         # import ipdb;ipdb.set_trace()
-        if use_group_norm: 
-            seq.append(nn.GroupNorm(8, out_channels))  # FIXME: REMEMBER TO CHANGE BACK !!!
+        if use_group_norm:
+            seq.append(
+                nn.GroupNorm(8, out_channels)
+            )  # FIXME: REMEMBER TO CHANGE BACK !!!
         self.residual = nn.Sequential(*seq)
 
         # (T, J, D) => (T/2, J, 2D)
-        self.shortcut = SkeletonConv(neighbour_list, in_channels=in_channels, out_channels=out_channels,
-                                     joint_num=joint_num, kernel_size=1, stride=stride, padding=0,
-                                     bias=True, add_offset=False)
+        self.shortcut = SkeletonConv(
+            neighbour_list,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            joint_num=joint_num,
+            kernel_size=1,
+            stride=stride,
+            padding=0,
+            bias=True,
+            add_offset=False,
+        )
 
         seq = []
         # (T/2, J, 2D) => (T/2, J', 2D)
-        pool = SkeletonPool(edges=topology, pooling_mode=pooling_mode,
-                            channels_per_edge=out_channels // len(neighbour_list), last_pool=last_pool)
+        pool = SkeletonPool(
+            edges=topology,
+            pooling_mode=pooling_mode,
+            channels_per_edge=out_channels // len(neighbour_list),
+            last_pool=last_pool,
+        )
         if len(pool.pooling_list) != pool.edge_num:
             seq.append(pool)
-        seq.append(nn.PReLU() if activation == 'relu' else nn.Tanh())
+        seq.append(nn.PReLU() if activation == "relu" else nn.Tanh())
         self.common = nn.Sequential(*seq)
 
     def forward(self, input):
@@ -149,7 +234,22 @@ class SkeletonResidual(nn.Module):
 
 
 class SkeletonResidualTranspose(nn.Module):
-    def __init__(self, neighbour_list, joint_num, in_channels, out_channels, kernel_size, padding, padding_mode, bias, extra_conv, pooling_list, upsampling, activation, last_layer):
+    def __init__(
+        self,
+        neighbour_list,
+        joint_num,
+        in_channels,
+        out_channels,
+        kernel_size,
+        padding,
+        padding_mode,
+        bias,
+        extra_conv,
+        pooling_list,
+        upsampling,
+        activation,
+        last_layer,
+    ):
         super(SkeletonResidualTranspose, self).__init__()
 
         kernel_even = False if kernel_size % 2 else True
@@ -157,7 +257,9 @@ class SkeletonResidualTranspose(nn.Module):
         seq = []
         # (T, J, D) => (2T, J, D)
         if upsampling is not None:
-            seq.append(nn.Upsample(scale_factor=2, mode=upsampling, align_corners=False))
+            seq.append(
+                nn.Upsample(scale_factor=2, mode=upsampling, align_corners=False)
+            )
         # (2T, J, D) => (2T, J', D)
         unpool = SkeletonUnpool(pooling_list, in_channels // len(neighbour_list))
         if unpool.input_edge_num != unpool.output_edge_num:
@@ -167,24 +269,51 @@ class SkeletonResidualTranspose(nn.Module):
         seq = []
         for _ in range(extra_conv):
             # (2T, J', D) => (2T, J', D)
-            seq.append(SkeletonConv(neighbour_list, in_channels=in_channels, out_channels=in_channels,
-                                    joint_num=joint_num, kernel_size=kernel_size - 1 if kernel_even else kernel_size,
-                                    stride=1,
-                                    padding=padding, padding_mode=padding_mode, bias=bias))
-            seq.append(nn.PReLU() if activation == 'relu' else nn.Tanh())
+            seq.append(
+                SkeletonConv(
+                    neighbour_list,
+                    in_channels=in_channels,
+                    out_channels=in_channels,
+                    joint_num=joint_num,
+                    kernel_size=kernel_size - 1 if kernel_even else kernel_size,
+                    stride=1,
+                    padding=padding,
+                    padding_mode=padding_mode,
+                    bias=bias,
+                )
+            )
+            seq.append(nn.PReLU() if activation == "relu" else nn.Tanh())
         # (2T, J', D) => (2T, J', D/2)
-        seq.append(SkeletonConv(neighbour_list, in_channels=in_channels, out_channels=out_channels,
-                                joint_num=joint_num, kernel_size=kernel_size - 1 if kernel_even else kernel_size,
-                                stride=1,
-                                padding=padding, padding_mode=padding_mode, bias=bias, add_offset=False))
+        seq.append(
+            SkeletonConv(
+                neighbour_list,
+                in_channels=in_channels,
+                out_channels=out_channels,
+                joint_num=joint_num,
+                kernel_size=kernel_size - 1 if kernel_even else kernel_size,
+                stride=1,
+                padding=padding,
+                padding_mode=padding_mode,
+                bias=bias,
+                add_offset=False,
+            )
+        )
         self.residual = nn.Sequential(*seq)
 
         # (2T, J', D) => (2T, J', D/2)
-        self.shortcut = SkeletonConv(neighbour_list, in_channels=in_channels, out_channels=out_channels,
-                                     joint_num=joint_num, kernel_size=1, stride=1, padding=0,
-                                     bias=True, add_offset=False)
+        self.shortcut = SkeletonConv(
+            neighbour_list,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            joint_num=joint_num,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            bias=True,
+            add_offset=False,
+        )
 
-        if activation == 'relu':
+        if activation == "relu":
             self.activation = nn.PReLU() if not last_layer else None
         else:
             self.activation = nn.Tanh() if not last_layer else None

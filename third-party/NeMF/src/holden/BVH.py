@@ -5,22 +5,18 @@ import numpy as np
 import sys
 
 
-channelmap = {
-    'Xrotation': 'x',
-    'Yrotation': 'y',
-    'Zrotation': 'z'
-}
+channelmap = {"Xrotation": "x", "Yrotation": "y", "Zrotation": "z"}
 
 channelmap_inv = {
-    'x': 'Xrotation',
-    'y': 'Yrotation',
-    'z': 'Zrotation',
+    "x": "Xrotation",
+    "y": "Yrotation",
+    "z": "Zrotation",
 }
 
 ordermap = {
-    'x': 0,
-    'y': 1,
-    'z': 2,
+    "x": 0,
+    "y": 1,
+    "z": 2,
 }
 
 
@@ -76,10 +72,10 @@ def load(filename, start=None, end=None, order=None, world=False):
         rmatch = re.match(r"ROOT (\w+)", line)
         if rmatch:
             names.append(rmatch.group(1))
-            offsets = np.append(offsets,    np.array([[0, 0, 0]]),   axis=0)
+            offsets = np.append(offsets, np.array([[0, 0, 0]]), axis=0)
             orients.qs = np.append(orients.qs, np.array([[1, 0, 0, 0]]), axis=0)
             parents = np.append(parents, active)
-            active = (len(parents)-1)
+            active = len(parents) - 1
             continue
 
         if "{" in line:
@@ -92,7 +88,9 @@ def load(filename, start=None, end=None, order=None, world=False):
                 active = parents[active]
             continue
 
-        offmatch = re.match(r"\s*OFFSET\s+([\-\d\.e]+)\s+([\-\d\.e]+)\s+([\-\d\.e]+)", line)
+        offmatch = re.match(
+            r"\s*OFFSET\s+([\-\d\.e]+)\s+([\-\d\.e]+)\s+([\-\d\.e]+)", line
+        )
         if offmatch:
             if not end_site:
                 offsets[active] = np.array([list(map(float, offmatch.groups()))])
@@ -104,7 +102,7 @@ def load(filename, start=None, end=None, order=None, world=False):
             if order is None:
                 channelis = 0 if channels == 3 else 3
                 channelie = 3 if channels == 3 else 6
-                parts = line.split()[2+channelis:2+channelie]
+                parts = line.split()[2 + channelis : 2 + channelie]
                 if any([p not in channelmap for p in parts]):
                     continue
                 order = "".join([channelmap[p] for p in parts])
@@ -113,10 +111,10 @@ def load(filename, start=None, end=None, order=None, world=False):
         jmatch = re.match("\s*JOINT\s+(\w+)", line)
         if jmatch:
             names.append(jmatch.group(1))
-            offsets = np.append(offsets,    np.array([[0, 0, 0]]),   axis=0)
+            offsets = np.append(offsets, np.array([[0, 0, 0]]), axis=0)
             orients.qs = np.append(orients.qs, np.array([[1, 0, 0, 0]]), axis=0)
             parents = np.append(parents, active)
-            active = (len(parents)-1)
+            active = len(parents) - 1
             continue
 
         if "End Site" in line:
@@ -126,7 +124,7 @@ def load(filename, start=None, end=None, order=None, world=False):
         fmatch = re.match("\s*Frames:\s+(\d+)", line)
         if fmatch:
             if start and end:
-                fnum = (end - start)-1
+                fnum = (end - start) - 1
             else:
                 fnum = int(fmatch.group(1))
             jnum = len(parents)
@@ -141,7 +139,7 @@ def load(filename, start=None, end=None, order=None, world=False):
             frametime = float(fmatch.group(1))
             continue
 
-        if (start and end) and (i < start or i >= end-1):
+        if (start and end) and (i < start or i >= end - 1):
             i += 1
             continue
 
@@ -161,7 +159,7 @@ def load(filename, start=None, end=None, order=None, world=False):
                 rotations[fi, :] = data_block[:, 3:6]
             elif channels == 9:
                 positions[fi, 0] = data_block[0:3]
-                data_block = data_block[3:].reshape(N-1, 9)
+                data_block = data_block[3:].reshape(N - 1, 9)
                 rotations[fi, 1:] = data_block[:, 3:6]
                 positions[fi, 1:] += data_block[:, 0:3] * data_block[:, 6:9]
             else:
@@ -173,7 +171,11 @@ def load(filename, start=None, end=None, order=None, world=False):
 
     rotations = Quaternions.from_euler(np.radians(rotations), order=order, world=world)
 
-    return (Animation(rotations, positions, orients, offsets, parents), names, frametime)
+    return (
+        Animation(rotations, positions, orients, offsets, parents),
+        names,
+        frametime,
+    )
 
 
 def load_bfa(filename, start=None, end=None, order=None, world=False):
@@ -232,10 +234,10 @@ def load_bfa(filename, start=None, end=None, order=None, world=False):
         rmatch = re.match(r"ROOT (\w+)", line)
         if rmatch:
             names.append(rmatch.group(1))
-            offsets = np.append(offsets,    np.array([[0, 0, 0]]),   axis=0)
+            offsets = np.append(offsets, np.array([[0, 0, 0]]), axis=0)
             orients.qs = np.append(orients.qs, np.array([[1, 0, 0, 0]]), axis=0)
             parents = np.append(parents, active)
-            active = (len(parents)-1)
+            active = len(parents) - 1
             continue
 
         if "{" in line:
@@ -248,7 +250,9 @@ def load_bfa(filename, start=None, end=None, order=None, world=False):
                 active = parents[active]
             continue
 
-        offmatch = re.match(r"\s*OFFSET\s+([\-\d\.e]+)\s+([\-\d\.e]+)\s+([\-\d\.e]+)", line)
+        offmatch = re.match(
+            r"\s*OFFSET\s+([\-\d\.e]+)\s+([\-\d\.e]+)\s+([\-\d\.e]+)", line
+        )
         if offmatch:
             if not end_site:
                 offsets[active] = np.array([list(map(float, offmatch.groups()))])
@@ -266,7 +270,7 @@ def load_bfa(filename, start=None, end=None, order=None, world=False):
             if order is None:
                 channelis = 0 if channels == 3 else 3
                 channelie = 3 if channels == 3 else 6
-                parts = line.split()[2+channelis:2+channelie]
+                parts = line.split()[2 + channelis : 2 + channelie]
                 if any([p not in channelmap for p in parts]):
                     continue
                 order = "".join([channelmap[p] for p in parts])
@@ -275,21 +279,23 @@ def load_bfa(filename, start=None, end=None, order=None, world=False):
         jmatch = re.match("\s*JOINT\s+(\w+)", line)
         if jmatch:
             names.append(jmatch.group(1))
-            offsets = np.append(offsets,    np.array([[0, 0, 0]]),   axis=0)
+            offsets = np.append(offsets, np.array([[0, 0, 0]]), axis=0)
             orients.qs = np.append(orients.qs, np.array([[1, 0, 0, 0]]), axis=0)
             parents = np.append(parents, active)
-            active = (len(parents)-1)
+            active = len(parents) - 1
             continue
 
         if "End Site" in line:
             if active + 1 in hand_idx:
                 print("parent:", names[-1])
-                name = "LeftHandIndex" if active + 1 == hand_idx[0] else "RightHandIndex"
+                name = (
+                    "LeftHandIndex" if active + 1 == hand_idx[0] else "RightHandIndex"
+                )
                 names.append(name)
-                offsets = np.append(offsets,    np.array([[0, 0, 0]]),   axis=0)
+                offsets = np.append(offsets, np.array([[0, 0, 0]]), axis=0)
                 orients.qs = np.append(orients.qs, np.array([[1, 0, 0, 0]]), axis=0)
                 parents = np.append(parents, active)
-                active = (len(parents)-1)
+                active = len(parents) - 1
             else:
                 end_site = True
             continue
@@ -297,7 +303,7 @@ def load_bfa(filename, start=None, end=None, order=None, world=False):
         fmatch = re.match("\s*Frames:\s+(\d+)", line)
         if fmatch:
             if start and end:
-                fnum = (end - start)-1
+                fnum = (end - start) - 1
             else:
                 fnum = int(fmatch.group(1))
             jnum = len(parents)
@@ -312,7 +318,7 @@ def load_bfa(filename, start=None, end=None, order=None, world=False):
             frametime = float(fmatch.group(1))
             continue
 
-        if (start and end) and (i < start or i >= end-1):
+        if (start and end) and (i < start or i >= end - 1):
             i += 1
             continue
 
@@ -325,11 +331,16 @@ def load_bfa(filename, start=None, end=None, order=None, world=False):
                 # This should be root positions[0:1] & all rotations
                 positions[fi, 0:1] = data_block[0:3]
                 tmp = data_block[3:].reshape(N - 2, 3)
-                tmp = np.concatenate([tmp[:hand_idx[0]],
-                                      np.array([[0, 0, 0]]),
-                                      tmp[hand_idx[0]: hand_idx[1] - 1],
-                                      np.array([[0, 0, 0]]),
-                                      tmp[hand_idx[1] - 1:]], axis=0)
+                tmp = np.concatenate(
+                    [
+                        tmp[: hand_idx[0]],
+                        np.array([[0, 0, 0]]),
+                        tmp[hand_idx[0] : hand_idx[1] - 1],
+                        np.array([[0, 0, 0]]),
+                        tmp[hand_idx[1] - 1 :],
+                    ],
+                    axis=0,
+                )
                 rotations[fi, :] = tmp.reshape(N, 3)
             elif channels == 6:
                 data_block = data_block.reshape(N, 6)
@@ -338,7 +349,7 @@ def load_bfa(filename, start=None, end=None, order=None, world=False):
                 rotations[fi, :] = data_block[:, 3:6]
             elif channels == 9:
                 positions[fi, 0] = data_block[0:3]
-                data_block = data_block[3:].reshape(N-1, 9)
+                data_block = data_block[3:].reshape(N - 1, 9)
                 rotations[fi, 1:] = data_block[:, 3:6]
                 positions[fi, 1:] += data_block[:, 0:3] * data_block[:, 6:9]
             else:
@@ -350,10 +361,22 @@ def load_bfa(filename, start=None, end=None, order=None, world=False):
 
     rotations = Quaternions.from_euler(np.radians(rotations), order=order, world=world)
 
-    return (Animation(rotations, positions, orients, offsets, parents), names, frametime)
+    return (
+        Animation(rotations, positions, orients, offsets, parents),
+        names,
+        frametime,
+    )
 
 
-def save(filename, anim, names=None, frametime=1.0/24.0, order='zyx', positions=False, orients=True):
+def save(
+    filename,
+    anim,
+    names=None,
+    frametime=1.0 / 24.0,
+    order="zyx",
+    positions=False,
+    orients=True,
+):
     """
     Saves an Animation to file as BVH
 
@@ -388,17 +411,27 @@ def save(filename, anim, names=None, frametime=1.0/24.0, order='zyx', positions=
     if names is None:
         names = ["joint_" + str(i) for i in range(len(anim.parents))]
 
-    with open(filename, 'w') as f:
+    with open(filename, "w") as f:
 
         t = ""
         f.write("%sHIERARCHY\n" % t)
         f.write("%sROOT %s\n" % (t, names[0]))
         f.write("%s{\n" % t)
-        t += '\t'
+        t += "\t"
 
-        f.write("%sOFFSET %f %f %f\n" % (t, anim.offsets[0, 0], anim.offsets[0, 1], anim.offsets[0, 2]))
-        f.write("%sCHANNELS 6 Xposition Yposition Zposition %s %s %s \n" %
-                (t, channelmap_inv[order[0]], channelmap_inv[order[1]], channelmap_inv[order[2]]))
+        f.write(
+            "%sOFFSET %f %f %f\n"
+            % (t, anim.offsets[0, 0], anim.offsets[0, 1], anim.offsets[0, 2])
+        )
+        f.write(
+            "%sCHANNELS 6 Xposition Yposition Zposition %s %s %s \n"
+            % (
+                t,
+                channelmap_inv[order[0]],
+                channelmap_inv[order[1]],
+                channelmap_inv[order[2]],
+            )
+        )
 
         for i in range(anim.shape[1]):
             if anim.parents[i] == 0:
@@ -423,32 +456,63 @@ def save(filename, anim, names=None, frametime=1.0/24.0, order='zyx', positions=
 
                 if positions or j == 0:
 
-                    f.write("%f %f %f %f %f %f " % (
-                        poss[i, j, 0],                  poss[i, j, 1],                  poss[i, j, 2],
-                        rots[i, j, ordermap[order[0]]], rots[i, j, ordermap[order[1]]], rots[i, j, ordermap[order[2]]]))
+                    f.write(
+                        "%f %f %f %f %f %f "
+                        % (
+                            poss[i, j, 0],
+                            poss[i, j, 1],
+                            poss[i, j, 2],
+                            rots[i, j, ordermap[order[0]]],
+                            rots[i, j, ordermap[order[1]]],
+                            rots[i, j, ordermap[order[2]]],
+                        )
+                    )
 
                 else:
 
-                    f.write("%f %f %f " % (
-                        rots[i, j, ordermap[order[0]]], rots[i, j, ordermap[order[1]]], rots[i, j, ordermap[order[2]]]))
+                    f.write(
+                        "%f %f %f "
+                        % (
+                            rots[i, j, ordermap[order[0]]],
+                            rots[i, j, ordermap[order[1]]],
+                            rots[i, j, ordermap[order[2]]],
+                        )
+                    )
 
             f.write("\n")
 
 
-def save_joint(f, anim, names, t, i, order='zyx', positions=False):
+def save_joint(f, anim, names, t, i, order="zyx", positions=False):
 
     f.write("%sJOINT %s\n" % (t, names[i]))
     f.write("%s{\n" % t)
-    t += '\t'
+    t += "\t"
 
-    f.write("%sOFFSET %f %f %f\n" % (t, anim.offsets[i, 0], anim.offsets[i, 1], anim.offsets[i, 2]))
+    f.write(
+        "%sOFFSET %f %f %f\n"
+        % (t, anim.offsets[i, 0], anim.offsets[i, 1], anim.offsets[i, 2])
+    )
 
     if positions:
-        f.write("%sCHANNELS 6 Xposition Yposition Zposition %s %s %s \n" % (t,
-                                                                            channelmap_inv[order[0]], channelmap_inv[order[1]], channelmap_inv[order[2]]))
+        f.write(
+            "%sCHANNELS 6 Xposition Yposition Zposition %s %s %s \n"
+            % (
+                t,
+                channelmap_inv[order[0]],
+                channelmap_inv[order[1]],
+                channelmap_inv[order[2]],
+            )
+        )
     else:
-        f.write("%sCHANNELS 3 %s %s %s\n" % (t,
-                                             channelmap_inv[order[0]], channelmap_inv[order[1]], channelmap_inv[order[2]]))
+        f.write(
+            "%sCHANNELS 3 %s %s %s\n"
+            % (
+                t,
+                channelmap_inv[order[0]],
+                channelmap_inv[order[1]],
+                channelmap_inv[order[2]],
+            )
+        )
 
     end_site = True
 
@@ -460,7 +524,7 @@ def save_joint(f, anim, names, t, i, order='zyx', positions=False):
     if end_site:
         f.write("%sEnd Site\n" % t)
         f.write("%s{\n" % t)
-        t += '\t'
+        t += "\t"
         f.write("%sOFFSET %f %f %f\n" % (t, 0.0, 0.0, 0.0))
         t = t[:-1]
         f.write("%s}\n" % t)
@@ -471,7 +535,9 @@ def save_joint(f, anim, names, t, i, order='zyx', positions=False):
     return t
 
 
-def export_bvh_animation(rotations, positions, offsets, parents, output_dir, prefix, joint_names, fps):
+def export_bvh_animation(
+    rotations, positions, offsets, parents, output_dir, prefix, joint_names, fps
+):
     """
     Args:
         rotations: quaternions of the shape (B, T, J, 4)
@@ -482,27 +548,56 @@ def export_bvh_animation(rotations, positions, offsets, parents, output_dir, pre
         rotation = align_joints(rotations[i])
         position = positions[i]
         position = position.unsqueeze(1)
-        anim = Animation(Quaternions(c2c(rotation)), c2c(position), None, offsets=offsets, parents=parents)
-        BVH.save(os.path.join(output_dir, f'{prefix}_{i}.bvh'), anim, names=joint_names, frametime=1 / fps)
+        anim = Animation(
+            Quaternions(c2c(rotation)),
+            c2c(position),
+            None,
+            offsets=offsets,
+            parents=parents,
+        )
+        BVH.save(
+            os.path.join(output_dir, f"{prefix}_{i}.bvh"),
+            anim,
+            names=joint_names,
+            frametime=1 / fps,
+        )
 
 
 def export_ply_trajectory(points, color, ply_fname):
     v = []
     for p in points:
         v += [(p[0], p[1], p[2], color[0], color[1], color[2])]
-    v = np.array(v, dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4'), ('red', 'u1'), ('green', 'u1'), ('blue', 'u1')])
-    el_v = plyfile.PlyElement.describe(v, 'vertex')
+    v = np.array(
+        v,
+        dtype=[
+            ("x", "f4"),
+            ("y", "f4"),
+            ("z", "f4"),
+            ("red", "u1"),
+            ("green", "u1"),
+            ("blue", "u1"),
+        ],
+    )
+    el_v = plyfile.PlyElement.describe(v, "vertex")
 
-    e = np.empty(len(points) - 1, dtype=[('vertex1', 'i4'), ('vertex2', 'i4')])
-    edge_data = np.array([[i, i + 1] for i in range(len(points) - 1)], dtype='i4')
-    e['vertex1'] = edge_data[:, 0]
-    e['vertex2'] = edge_data[:, 1]
-    el_e = plyfile.PlyElement.describe(e, 'edge')
+    e = np.empty(len(points) - 1, dtype=[("vertex1", "i4"), ("vertex2", "i4")])
+    edge_data = np.array([[i, i + 1] for i in range(len(points) - 1)], dtype="i4")
+    e["vertex1"] = edge_data[:, 0]
+    e["vertex2"] = edge_data[:, 1]
+    el_e = plyfile.PlyElement.describe(e, "edge")
 
     plyfile.PlyData([el_v, el_e], text=True).write(ply_fname)
+
 
 if __name__ == "__main__":
     # 100STYLE/OnToesBentForward/OnToesBentForward_ID.bvh
     export_bvh_animation(
-        rotations, positions, offsets, parents, 
-        output_dir='./bvh_frames', prefix='exbvh', joint_names=None, fps=30)
+        rotations,
+        positions,
+        offsets,
+        parents,
+        output_dir="./bvh_frames",
+        prefix="exbvh",
+        joint_names=None,
+        fps=30,
+    )

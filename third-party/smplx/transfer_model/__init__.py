@@ -13,4 +13,3 @@
 # for Intelligent Systems. All rights reserved.
 #
 # Contact: Vassilis Choutas, vassilis.choutas@tuebingen.mpg.de
-

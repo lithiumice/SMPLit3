@@ -1,9 +1,9 @@
-
 import glob
 import matplotlib
 import cv2
 import re
 import json
+
 
 class VideoWrapper:
     video = []
@@ -16,16 +16,16 @@ class VideoWrapper:
         self.width = self.video.get(cv2.CAP_PROP_FRAME_WIDTH)
         self.height = self.video.get(cv2.CAP_PROP_FRAME_HEIGHT)
         self.framerate = self.video.get(cv2.CAP_PROP_FPS)
-        
-        self.total_sec=self.frame2second(self.total_frames)
-        
-    def read(self,seconds=None,frames=None):
+
+        self.total_sec = self.frame2second(self.total_frames)
+
+    def read(self, seconds=None, frames=None):
         if seconds is not None:
             self.set_current_msec(seconds)
         if frames is not None:
             self.set_current_frame(frames)
         return self.video.read()
- 
+
     def get_video_reader(self):
         return self.video
 
@@ -37,7 +37,6 @@ class VideoWrapper:
 
     def set_current_frame(self, cur_frame_no):
         self.video.set(cv2.CAP_PROP_POS_FRAMES, cur_frame_no)
-    
+
     def set_current_msec(self, cur_msec):
         self.video.set(cv2.CAP_PROP_POS_MSEC, cur_msec)
-

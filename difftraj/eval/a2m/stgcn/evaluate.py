@@ -10,11 +10,13 @@ from eval.a2m.recognition.models.stgcn import STGCN
 class Evaluation:
     def __init__(self, dataname, parameters, device, seed=None):
         layout = "smpl"  # if parameters["glob"] else "smpl_noglobal"
-        model = STGCN(in_channels=parameters["nfeats"],
-                      num_class=parameters["num_classes"],
-                      graph_args={"layout": layout, "strategy": "spatial"},
-                      edge_importance_weighting=True,
-                      device=device)
+        model = STGCN(
+            in_channels=parameters["nfeats"],
+            num_class=parameters["num_classes"],
+            graph_args={"layout": layout, "strategy": "spatial"},
+            edge_importance_weighting=True,
+            device=device,
+        )
 
         model = model.to(device)
 
@@ -39,10 +41,10 @@ class Evaluation:
         with torch.no_grad():
             for idx, batch in enumerate(motionloader):
                 activations.append(self.model(batch)["features"])
-                if model.cond_mode != 'no_cond':
+                if model.cond_mode != "no_cond":
                     labels.append(batch["y"])
             activations = torch.cat(activations, dim=0)
-            if model.cond_mode != 'no_cond':
+            if model.cond_mode != "no_cond":
                 labels = torch.cat(labels, dim=0)
         return activations, labels
 
@@ -66,11 +68,11 @@ class Evaluation:
 
                 metric = "accuracy"
                 mkey = f"{metric}_{key}"
-                if model.cond_mode != 'no_cond':
+                if model.cond_mode != "no_cond":
                     print_logs(metric, key)
-                    metrics[mkey], _ = calculate_accuracy(model, loader,
-                                                          self.num_classes,
-                                                          self.model, self.device)
+                    metrics[mkey], _ = calculate_accuracy(
+                        model, loader, self.num_classes, self.model, self.device
+                    )
                 else:
                     metrics[mkey] = np.nan
 
@@ -80,13 +82,16 @@ class Evaluation:
                 print_logs("stats", key)
                 stats = self.calculate_activation_statistics(feats)
 
-                computedfeats[key] = {"feats": feats,
-                                      "labels": labels,
-                                      "stats": stats}
+                computedfeats[key] = {"feats": feats, "labels": labels, "stats": stats}
 
                 print_logs("diversity", key)
-                ret = calculate_diversity_multimodality(feats, labels, self.num_classes,
-                                                        seed=self.seed, unconstrained=(model.cond_mode=='no_cond'))
+                ret = calculate_diversity_multimodality(
+                    feats,
+                    labels,
+                    self.num_classes,
+                    seed=self.seed,
+                    unconstrained=(model.cond_mode == "no_cond"),
+                )
                 metrics[f"diversity_{key}"], metrics[f"multimodality_{key}"] = ret
 
             # taking the stats of the ground truth and remove it from the computed feats

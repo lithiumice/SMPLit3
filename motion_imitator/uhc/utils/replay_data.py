@@ -1,5 +1,6 @@
 import os
 import sys
+
 sys.path.append(os.getcwd())
 
 from mujoco_py import load_model_from_path, MjSim
@@ -10,17 +11,16 @@ import glfw
 import math
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--model_id', type=str, default='human36m_v1')
-parser.add_argument('--offset_z', type=float, default=0.0)
-parser.add_argument('--start_take', type=str, default=None)
-parser.add_argument('--dataset', type=str, default='h36m/data_qpos_h36m')
+parser.add_argument("--model_id", type=str, default="human36m_v1")
+parser.add_argument("--offset_z", type=float, default=0.0)
+parser.add_argument("--start_take", type=str, default=None)
+parser.add_argument("--dataset", type=str, default="h36m/data_qpos_h36m")
 args = parser.parse_args()
 
-model_file = f'assets/mujoco_models/{args.model_id}.xml'
+model_file = f"assets/mujoco_models/{args.model_id}.xml"
 model = load_model_from_path(model_file)
 sim = MjSim(model)
 viewer = MjViewer(sim)
-
 
 
 def key_callback(key, action, mods):
@@ -69,7 +69,7 @@ def key_callback(key, action, mods):
 
 
 def update_mocap():
-    print(f'{take[0]} {take[1]}: [{fr}, {qpos_traj.shape[0]}] dz: {offset_z:.3f}')
+    print(f"{take[0]} {take[1]}: [{fr}, {qpos_traj.shape[0]}] dz: {offset_z:.3f}")
     print(qpos_traj.shape)
     sim.data.qpos[:] = qpos_traj[fr]
     sim.data.qpos[2] += offset_z
@@ -83,12 +83,16 @@ def load_take():
     qpos_traj = data[take[0]][take[1]]
 
 
-data = pickle.load(open(os.path.expanduser('data/{}.p').format(args.dataset), 'rb'))
-takes = [(subject, action) for subject, s_data in data.items() for action in s_data.keys()]
+data = pickle.load(open(os.path.expanduser("data/{}.p").format(args.dataset), "rb"))
+takes = [
+    (subject, action) for subject, s_data in data.items() for action in s_data.keys()
+]
 
 qpos_traj = None
 take = None
-take_ind = 0 if args.start_take is None else takes.index(tuple(args.start_take.split(',')))
+take_ind = (
+    0 if args.start_take is None else takes.index(tuple(args.start_take.split(",")))
+)
 fr = 0
 offset_z = args.offset_z
 # load_take()
@@ -121,6 +125,3 @@ while not stop:
     viewer.render()
     if not paused:
         t += 1
-
-
-

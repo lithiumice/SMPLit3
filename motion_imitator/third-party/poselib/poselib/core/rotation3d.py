@@ -145,7 +145,7 @@ def quat_identity(shape: List[int]):
 
 @torch.jit.script
 def quat_from_angle_axis(angle, axis, degree: bool = False):
-    """ Create a 3D rotation from angle and axis of rotation. The rotation is counter-clockwise 
+    """Create a 3D rotation from angle and axis of rotation. The rotation is counter-clockwise
     along the axis.
 
     The rotation can be interpreted as a_R_b where frame "b" is the new frame that
@@ -311,7 +311,6 @@ def transform_identity(shape: List[int]):
     return transform_from_rotation_translation(r, t)
 
 
-
 @torch.jit.script
 def transform_rotation(x):
     """Get rotation from transform"""
@@ -404,15 +403,15 @@ def rot_matrix_from_quaternion(q):
     qi, qj, qk, qr = q[..., 0], q[..., 1], q[..., 2], q[..., 3]
 
     # Set individual elements
-    R00 = 1.0 - 2.0 * (qj ** 2 + qk ** 2)
+    R00 = 1.0 - 2.0 * (qj**2 + qk**2)
     R01 = 2 * (qi * qj - qk * qr)
     R02 = 2 * (qi * qk + qj * qr)
     R10 = 2 * (qi * qj + qk * qr)
-    R11 = 1.0 - 2.0 * (qi ** 2 + qk ** 2)
+    R11 = 1.0 - 2.0 * (qi**2 + qk**2)
     R12 = 2 * (qj * qk - qi * qr)
     R20 = 2 * (qi * qk - qj * qr)
     R21 = 2 * (qj * qk + qi * qr)
-    R22 = 1.0 - 2.0 * (qi ** 2 + qj ** 2)
+    R22 = 1.0 - 2.0 * (qi**2 + qj**2)
 
     R0 = torch.stack([R00, R01, R02], dim=-1)
     R1 = torch.stack([R10, R11, R12], dim=-1)
@@ -469,4 +468,3 @@ def euclidean_to_transform(transformation_matrix):
         ),
         t=euclidean_translation(transformation_matrix),
     )
-

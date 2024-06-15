@@ -7,7 +7,7 @@ from uhc.khrylib.rl.core.policy import Policy
 class PolicyDiscrete(Policy):
     def __init__(self, net, action_num, net_out_dim=None):
         super().__init__()
-        self.type = 'discrete'
+        self.type = "discrete"
         if net_out_dim is None:
             net_out_dim = net.out_dim
         self.net = net
@@ -24,4 +24,3 @@ class PolicyDiscrete(Policy):
         action_prob = self.forward(x)
         M = action_prob.pow(-1).view(-1).detach()
         return M, action_prob, {}
-

@@ -451,7 +451,8 @@ def de_heading_batch(q):
     q_deheaded_inv = quaternion_inverse_batch(q_deheaded)
 
     return quaternion_multiply_batch(q_deheaded_inv, q)
-    
+
+
 def get_heading_batch(q):
     hq = q.clone()
     hq[:, 1] = 0
@@ -463,6 +464,7 @@ def get_heading_batch(q):
     w = 2 * safe_acos_batch(hq[:, 0])
     heading = torch.tensor(w, dtype=hq.dtype, device=hq.device)[:, None]
     return heading
+
 
 def get_heading(q):
     hq = q.clone()
@@ -622,6 +624,3 @@ if __name__ == "__main__":
         assert equal(a0, a1), \
              "rotation_from_quaternion_batch: \n {} \n {}".format(a0, np.array(a1)) 
         """
-
-
-

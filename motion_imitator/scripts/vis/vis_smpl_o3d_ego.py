@@ -21,13 +21,26 @@ from uhc.smpllib.smpl_parser import (
 import random
 
 from uhc.smpllib.smpl_mujoco import SMPL_BONE_ORDER_NAMES as joint_names
-from poselib.poselib.skeleton.skeleton3d import SkeletonTree, SkeletonMotion, SkeletonState
+from poselib.poselib.skeleton.skeleton3d import (
+    SkeletonTree,
+    SkeletonMotion,
+    SkeletonState,
+)
 from scipy.spatial.transform import Rotation as sRot
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import matplotlib as mpl
 from datetime import datetime
-paused, reset, recording, image_list, writer, control, curr_zoom = False, False, False, [], None, None, 0.01
+
+paused, reset, recording, image_list, writer, control, curr_zoom = (
+    False,
+    False,
+    False,
+    [],
+    None,
+    None,
+    0.01,
+)
 
 
 def pause_func(action):
@@ -48,9 +61,11 @@ def record_func(action):
     global recording, writer
     if not recording:
         fps = 30
-        curr_date_time = datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
+        curr_date_time = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
         curr_video_file_name = f"output/renderings/o3d/{curr_date_time}-test.mp4"
-        writer = imageio.get_writer(curr_video_file_name, fps=fps, macro_block_size=None)
+        writer = imageio.get_writer(
+            curr_video_file_name, fps=fps, macro_block_size=None
+        )
     elif not writer is None:
         writer.close()
         writer = None
@@ -68,8 +83,34 @@ def zoom_func(action):
     print(f"Reset: {reset}")
     return True
 
-colorpicker = mpl.colormaps['Blues']
-mujoco_joint_names = ['Pelvis', 'L_Hip', 'L_Knee', 'L_Ankle', 'L_Toe', 'R_Hip', 'R_Knee', 'R_Ankle', 'R_Toe', 'Torso', 'Spine', 'Chest', 'Neck', 'Head', 'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'L_Hand', 'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist', 'R_Hand']
+
+colorpicker = mpl.colormaps["Blues"]
+mujoco_joint_names = [
+    "Pelvis",
+    "L_Hip",
+    "L_Knee",
+    "L_Ankle",
+    "L_Toe",
+    "R_Hip",
+    "R_Knee",
+    "R_Ankle",
+    "R_Toe",
+    "Torso",
+    "Spine",
+    "Chest",
+    "Neck",
+    "Head",
+    "L_Thorax",
+    "L_Shoulder",
+    "L_Elbow",
+    "L_Wrist",
+    "L_Hand",
+    "R_Thorax",
+    "R_Shoulder",
+    "R_Elbow",
+    "R_Wrist",
+    "R_Hand",
+]
 
 Name = "getting_started"
 Title = "Getting Started"
@@ -82,7 +123,9 @@ smpl_parser_f = SMPL_Parser(model_path=data_dir, gender="female")
 pkl_dir = "output/renderings/smpl_im_comp_pnn_1_1_demo-2023-03-13-14:28:47.pkl"
 Name = pkl_dir.split("/")[-1].split(".")[0]
 pkl_data = joblib.load(pkl_dir)
-mujoco_2_smpl = [mujoco_joint_names.index(q) for q in joint_names if q in mujoco_joint_names]
+mujoco_2_smpl = [
+    mujoco_joint_names.index(q) for q in joint_names if q in mujoco_joint_names
+]
 
 # data_file = "data/quest/home1_isaac.pkl"
 # sk_tree = SkeletonTree.from_mjcf(f"/tmp/smpl/test_good.xml")
@@ -100,7 +143,7 @@ def main():
 
     ############ Loading texture ############
     texture_path = "/hdd/zen/data/SURREAL/smpl_data/"
-    faces_uv = np.load(os.path.join(texture_path, 'final_faces_uv_mapping.npy'))
+    faces_uv = np.load(os.path.join(texture_path, "final_faces_uv_mapping.npy"))
     uv_sampler = torch.from_numpy(faces_uv.reshape(-1, 2, 2, 2))
     uv_sampler = uv_sampler.view(-1, 13776, 2 * 2, 2)
     texture_img_path_male = osp.join(texture_path, "textures", "male")
@@ -111,7 +154,7 @@ def main():
     items = list(pkl_data.items())
 
     for entry_key, data_seq in tqdm(items):
-        gender, beta = data_seq['betas'][0], data_seq['betas'][1:]
+        gender, beta = data_seq["betas"][0], data_seq["betas"][1:]
         if gender == 0:
             smpl_parser = smpl_parser_n
             texture_image_path = texture_img_path_male
@@ -122,25 +165,53 @@ def main():
             smpl_parser = smpl_parser_f
             texture_image_path = texture_img_path_female
 
-        pose_quat, trans = data_seq['body_quat'].numpy()[::2], data_seq['trans'].numpy()[::2]
+        pose_quat, trans = (
+            data_seq["body_quat"].numpy()[::2],
+            data_seq["trans"].numpy()[::2],
+        )
         if pose_quat.shape[0] < 200:
             continue
-        skeleton_tree = SkeletonTree.from_dict(data_seq['skeleton_tree'])
+        skeleton_tree = SkeletonTree.from_dict(data_seq["skeleton_tree"])
         offset = skeleton_tree.local_translation[0]
         root_trans_offset = trans - offset.numpy()
 
-        sk_state = SkeletonState.from_rotation_and_root_translation(skeleton_tree, torch.from_numpy(pose_quat), torch.from_numpy(trans), is_local=True)
+        sk_state = SkeletonState.from_rotation_and_root_translation(
+            skeleton_tree,
+            torch.from_numpy(pose_quat),
+            torch.from_numpy(trans),
+            is_local=True,
+        )
 
         global_rot = sk_state.global_rotation
         B, J, N = global_rot.shape
-        pose_quat = (sRot.from_quat(global_rot.reshape(-1, 4).numpy()) * sRot.from_quat([0.5, 0.5, 0.5, 0.5])).as_quat().reshape(B, -1, 4)
+        pose_quat = (
+            (
+                sRot.from_quat(global_rot.reshape(-1, 4).numpy())
+                * sRot.from_quat([0.5, 0.5, 0.5, 0.5])
+            )
+            .as_quat()
+            .reshape(B, -1, 4)
+        )
         B_down = pose_quat.shape[0]
-        new_sk_state = SkeletonState.from_rotation_and_root_translation(skeleton_tree, torch.from_numpy(pose_quat), torch.from_numpy(trans), is_local=False)
+        new_sk_state = SkeletonState.from_rotation_and_root_translation(
+            skeleton_tree,
+            torch.from_numpy(pose_quat),
+            torch.from_numpy(trans),
+            is_local=False,
+        )
         local_rot = new_sk_state.local_rotation
-        pose_aa = sRot.from_quat(local_rot.reshape(-1, 4).numpy()).as_rotvec().reshape(B_down, -1, 3)
+        pose_aa = (
+            sRot.from_quat(local_rot.reshape(-1, 4).numpy())
+            .as_rotvec()
+            .reshape(B_down, -1, 3)
+        )
         pose_aa = pose_aa[:, mujoco_2_smpl, :].reshape(B_down, -1)
 
-        vertices, joints = smpl_parser.get_joints_verts(pose=torch.from_numpy(pose_aa), th_trans=torch.from_numpy(root_trans_offset), th_betas=torch.from_numpy(beta[None,]))
+        vertices, joints = smpl_parser.get_joints_verts(
+            pose=torch.from_numpy(pose_aa),
+            th_trans=torch.from_numpy(root_trans_offset),
+            th_betas=torch.from_numpy(beta[None,]),
+        )
         vertices = vertices.numpy()
         faces = smpl_parser.faces
         smpl_mesh = o3d.geometry.TriangleMesh()
@@ -168,15 +239,15 @@ def main():
         #         vertex_colors[vid] = colors[vidx]
         # vertex_colors = np.array([vertex_colors[i] for i in range(len(vertex_colors))])
         # smpl_mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors)
-        
+
         vertex_colors = colorpicker(0.6)[:3]
         smpl_mesh.paint_uniform_color(vertex_colors)
-        
+
         smpl_mesh.compute_vertex_normals()
         ######################## Smampling texture ########################
         vis.add_geometry(smpl_mesh)
         smpl_meshes[entry_key] = {
-            'mesh': smpl_mesh,
+            "mesh": smpl_mesh,
             "vertices": vertices,
         }
         break
@@ -187,14 +258,18 @@ def main():
     box.translate(np.array([-ground_size / 2, -height, -ground_size / 2]))
     box.rotate(sRot.from_euler("xyz", [np.pi / 2, 0, 0]).as_matrix())
     box.compute_vertex_normals()
-    box.vertex_colors = o3d.utility.Vector3dVector(np.array([[1, 1, 1]]).repeat(8, axis=0))
+    box.vertex_colors = o3d.utility.Vector3dVector(
+        np.array([[1, 1, 1]]).repeat(8, axis=0)
+    )
 
     spheres = []
     for _ in range(24):
         sphere = o3d.geometry.TriangleMesh()
         sphere = sphere.create_sphere(radius=0.05)
         sphere.compute_vertex_normals()
-        sphere.vertex_colors = o3d.utility.Vector3dVector(np.array([[0.1, 0.9, 0.1]]).repeat(len(sphere.vertices), axis=0))
+        sphere.vertex_colors = o3d.utility.Vector3dVector(
+            np.array([[0.1, 0.9, 0.1]]).repeat(len(sphere.vertices), axis=0)
+        )
         spheres.append(sphere)
 
     sphere_pos = np.zeros([24, 3])
@@ -220,15 +295,19 @@ def main():
     control.set_zoom(0.5)
     dt = 1 / 30
 
-    to_isaac_mat = sRot.from_euler('xyz', np.array([-np.pi / 2, 0, 0]), degrees=False).as_matrix()
-    tracker_pos = pkl_data['0_0']['ref_body_pos_subset'][::2].cpu().numpy()
+    to_isaac_mat = sRot.from_euler(
+        "xyz", np.array([-np.pi / 2, 0, 0]), degrees=False
+    ).as_matrix()
+    tracker_pos = pkl_data["0_0"]["ref_body_pos_subset"][::2].cpu().numpy()
     tracker_pos = np.matmul(tracker_pos, to_isaac_mat.T)
 
     while True:
         vis.poll_events()
         for smpl_mesh_key, smpl_mesh_data in smpl_meshes.items():
             verts = smpl_mesh_data["vertices"]
-            smpl_mesh_data["mesh"].vertices = o3d.utility.Vector3dVector(verts[i % verts.shape[0]])
+            smpl_mesh_data["mesh"].vertices = o3d.utility.Vector3dVector(
+                verts[i % verts.shape[0]]
+            )
             vis.update_geometry(smpl_mesh_data["mesh"])
 
             # motion_res = motion_lib.get_motion_state(torch.tensor([0]), torch.tensor([(i % verts.shape[0]) * dt]))
@@ -243,7 +322,7 @@ def main():
             # vis.update_geometry(sphere)
 
         if not paused:
-            i = (i + 1)
+            i = i + 1
 
         if reset:
             i = 0

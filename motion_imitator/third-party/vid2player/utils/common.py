@@ -13,9 +13,9 @@ class AverageMeter(object):
             self.avg = avg
             self.count = count
             self.sum = avg * count
-    
+
     def __repr__(self) -> str:
-        return f'{self.avg: .4f}'
+        return f"{self.avg: .4f}"
 
     def reset(self):
         self.val = 0
@@ -39,9 +39,9 @@ class AverageMeterUnSync(object):
         self.avg = torch.zeros(dim)
         self.max = torch.zeros(dim)
         self.reset()
-    
+
     def __repr__(self) -> str:
-        return f'{self.avg: .4f}'
+        return f"{self.avg: .4f}"
 
     def reset(self):
         self.sum[:] = 0
@@ -81,7 +81,8 @@ def set_seed(seed):
 
 
 def array2list(arr):
-    if arr is None: return None
+    if arr is None:
+        return None
     if isinstance(arr, list) or isinstance(arr, tuple) or len(arr.shape) == 1:
         return [float(i) for i in arr]
     else:
@@ -109,7 +110,8 @@ def test_point_in_bbox(pt, bbox):
 
 
 def get_opponent_env_ids(env_ids):
-    if len(env_ids) == 0: return env_ids
+    if len(env_ids) == 0:
+        return env_ids
     is_even = env_ids % 2 == 0
     oppo_env_ids = torch.cat([env_ids[is_even] + 1, env_ids[~is_even] - 1])
     return oppo_env_ids.sort().values

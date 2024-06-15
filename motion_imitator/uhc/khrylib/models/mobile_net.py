@@ -11,7 +11,7 @@ class MobileNet(nn.Module):
             return nn.Sequential(
                 nn.Conv2d(inp, oup, 3, stride, 1, bias=False),
                 nn.BatchNorm2d(oup),
-                nn.ReLU(inplace=True)
+                nn.ReLU(inplace=True),
             )
 
         def conv_dw(inp, oup, stride):
@@ -19,7 +19,6 @@ class MobileNet(nn.Module):
                 nn.Conv2d(inp, inp, 3, stride, 1, groups=inp, bias=False),
                 nn.BatchNorm2d(inp),
                 nn.ReLU(inplace=True),
-
                 nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(oup),
                 nn.ReLU(inplace=True),
@@ -51,8 +50,9 @@ class MobileNet(nn.Module):
         return x
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import time
+
     torch.set_grad_enabled(False)
     net = MobileNet(128)
     input = ones(1, 3, 224, 224)

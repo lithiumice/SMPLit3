@@ -11,6 +11,7 @@ class ObjectFactory:
 
 class EmptyFactory(ObjectFactory):
     """An EmptyFactory simply returns the passed in object."""
+
     def __init__(self, _object):
         self._object = _object
 
@@ -30,16 +31,14 @@ class FactoryList(ObjectFactory):
             f.add_to_parser(parser)
 
     def from_dict(self, arguments):
-        return [
-            f.from_dict(arguments)
-            for f in self.factories
-        ]
+        return [f.from_dict(arguments) for f in self.factories]
 
 
 class CallableFactory(ObjectFactory):
     """CallableFactory creates an ObjectFactory instance from a callable using
     Python's reflection to define the arguments, argument types and default
     parameters."""
+
     def __init__(self, func, namespace=""):
         self._func = func
         self._signature = signature(self._func)
@@ -47,11 +46,7 @@ class CallableFactory(ObjectFactory):
 
     @property
     def arg_pattern(self):
-        return (
-            "{}"
-            if self._namespace == ""
-            else "{}_{{}}".format(self._namespace)
-        )
+        return "{}" if self._namespace == "" else "{}_{{}}".format(self._namespace)
 
     def add_to_parser(self, parser):
         arg_pattern = self.arg_pattern
@@ -62,16 +57,14 @@ class CallableFactory(ObjectFactory):
                 else str
             )
             default = (
-                parameter.default
-                if parameter.default is not Parameter.empty
-                else None
+                parameter.default if parameter.default is not Parameter.empty else None
             )
 
             parser.add_argument(
                 "--" + arg_pattern.format(parameter.name),
                 type=type,
                 default=default,
-                help="{}:{!r} = {}".format(parameter.name, type, default)
+                help="{}:{!r} = {}".format(parameter.name, type, default),
             )
 
     def from_dict(self, arguments):
@@ -89,8 +82,11 @@ class CallableFactory(ObjectFactory):
             if key in arguments:
                 value = arguments[key]
             if value is Parameter.empty:
-                raise RuntimeError(("{} parameter is required but a value "
-                                    "was not provided").format(key))
+                raise RuntimeError(
+                    ("{} parameter is required but a value " "was not provided").format(
+                        key
+                    )
+                )
             value = (
                 parameter.annotation(value)
                 if parameter.annotation is not Parameter.empty

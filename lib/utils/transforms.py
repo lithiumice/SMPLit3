@@ -71,7 +71,6 @@ def quaternion_to_matrix(quaternions: torch.Tensor) -> torch.Tensor:
     return o.reshape(quaternions.shape[:-1] + (3, 3))
 
 
-
 def _copysign(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     """
     Return a tensor where each element has the absolute value taken from the,
@@ -163,7 +162,6 @@ def matrix_to_quaternion(matrix: torch.Tensor) -> torch.Tensor:
     ].reshape(batch_dim + (4,))
 
 
-
 def _axis_angle_rotation(axis: str, angle: torch.Tensor) -> torch.Tensor:
     """
     Return the rotation matrices for one of the rotations about an axis
@@ -221,7 +219,6 @@ def euler_angles_to_matrix(euler_angles: torch.Tensor, convention: str) -> torch
     ]
     # return functools.reduce(torch.matmul, matrices)
     return torch.matmul(torch.matmul(matrices[0], matrices[1]), matrices[2])
-
 
 
 def _angle_from_tan(
@@ -309,7 +306,6 @@ def matrix_to_euler_angles(matrix: torch.Tensor, convention: str) -> torch.Tenso
     return torch.stack(o, -1)
 
 
-
 def random_quaternions(
     n: int, dtype: Optional[torch.dtype] = None, device: Optional[Device] = None
 ) -> torch.Tensor:
@@ -334,7 +330,6 @@ def random_quaternions(
     return o
 
 
-
 def random_rotations(
     n: int, dtype: Optional[torch.dtype] = None, device: Optional[Device] = None
 ) -> torch.Tensor:
@@ -354,7 +349,6 @@ def random_rotations(
     return quaternion_to_matrix(quaternions)
 
 
-
 def random_rotation(
     dtype: Optional[torch.dtype] = None, device: Optional[Device] = None
 ) -> torch.Tensor:
@@ -372,7 +366,6 @@ def random_rotation(
     return random_rotations(1, dtype, device)[0]
 
 
-
 def standardize_quaternion(quaternions: torch.Tensor) -> torch.Tensor:
     """
     Convert a unit quaternion to a standard form: one in which the real
@@ -386,7 +379,6 @@ def standardize_quaternion(quaternions: torch.Tensor) -> torch.Tensor:
         Standardized quaternions as tensor of shape (..., 4).
     """
     return torch.where(quaternions[..., 0:1] < 0, -quaternions, quaternions)
-
 
 
 def quaternion_raw_multiply(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
@@ -410,7 +402,6 @@ def quaternion_raw_multiply(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     return torch.stack((ow, ox, oy, oz), -1)
 
 
-
 def quaternion_multiply(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     """
     Multiply two quaternions representing rotations, returning the quaternion
@@ -428,7 +419,6 @@ def quaternion_multiply(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     return standardize_quaternion(ab)
 
 
-
 def quaternion_invert(quaternion: torch.Tensor) -> torch.Tensor:
     """
     Given a quaternion representing rotation, get the quaternion representing
@@ -444,7 +434,6 @@ def quaternion_invert(quaternion: torch.Tensor) -> torch.Tensor:
 
     scaling = torch.tensor([1, -1, -1, -1], device=quaternion.device)
     return quaternion * scaling
-
 
 
 def quaternion_apply(quaternion: torch.Tensor, point: torch.Tensor) -> torch.Tensor:
@@ -470,7 +459,6 @@ def quaternion_apply(quaternion: torch.Tensor, point: torch.Tensor) -> torch.Ten
     return out[..., 1:]
 
 
-
 def axis_angle_to_matrix(axis_angle: torch.Tensor) -> torch.Tensor:
     """
     Convert rotations given as axis/angle to rotation matrices.
@@ -487,7 +475,6 @@ def axis_angle_to_matrix(axis_angle: torch.Tensor) -> torch.Tensor:
     return quaternion_to_matrix(axis_angle_to_quaternion(axis_angle))
 
 
-
 def matrix_to_axis_angle(matrix: torch.Tensor) -> torch.Tensor:
     """
     Convert rotations given as rotation matrices to axis/angle.
@@ -502,7 +489,6 @@ def matrix_to_axis_angle(matrix: torch.Tensor) -> torch.Tensor:
             direction.
     """
     return quaternion_to_axis_angle(matrix_to_quaternion(matrix))
-
 
 
 def axis_angle_to_quaternion(axis_angle: torch.Tensor) -> torch.Tensor:
@@ -537,7 +523,6 @@ def axis_angle_to_quaternion(axis_angle: torch.Tensor) -> torch.Tensor:
     return quaternions
 
 
-
 def quaternion_to_axis_angle(quaternions: torch.Tensor) -> torch.Tensor:
     """
     Convert rotations given as quaternions to axis/angle.
@@ -567,7 +552,6 @@ def quaternion_to_axis_angle(quaternions: torch.Tensor) -> torch.Tensor:
         0.5 - (angles[small_angles] * angles[small_angles]) / 48
     )
     return quaternions[..., 1:] / sin_half_angles_over_angles
-
 
 
 def rotation_6d_to_matrix(d6: torch.Tensor) -> torch.Tensor:
@@ -635,10 +619,10 @@ def rot6d_to_rotmat(x):
     else:
         x = x.reshape(*x.shape[:-1], -1, 6)
         batch_dim = x.size()[:-1]
-    
+
     x = x.reshape(*batch_dim, 3, 2)
     a1, a2 = x[..., 0], x[..., 1]
-    
+
     b1 = F.normalize(a1, dim=-1)
     b2 = a2 - (b1 * a2).sum(-1, keepdim=True) * b1
     b2 = F.normalize(b2, dim=-1)
@@ -654,9 +638,9 @@ def rotmat_to_rot6d(x):
 
 
 def convert_rotation_matrix_to_homogeneous(rotation_matrix):
-    "Add empty translation vector to Rotation matrix"""
+    "Add empty translation vector to Rotation matrix" ""
 
-    transl = torch.zeros_like(rotation_matrix[...,:1])
+    transl = torch.zeros_like(rotation_matrix[..., :1])
     rotation_matrix_hom = torch.cat((rotation_matrix, transl), dim=-1)
 
     return rotation_matrix_hom
@@ -708,17 +692,22 @@ def rotation_matrix_to_quaternion(rotation_matrix, eps=1e-6):
         >>> output = tgm.rotation_matrix_to_quaternion(input)  # Nx4
     """
     if not torch.is_tensor(rotation_matrix):
-        raise TypeError("Input type is not a torch.Tensor. Got {}".format(
-            type(rotation_matrix)))
+        raise TypeError(
+            "Input type is not a torch.Tensor. Got {}".format(type(rotation_matrix))
+        )
 
     if len(rotation_matrix.shape) > 3:
         raise ValueError(
             "Input size must be a three dimensional tensor. Got {}".format(
-                rotation_matrix.shape))
+                rotation_matrix.shape
+            )
+        )
     if not rotation_matrix.shape[-2:] == (3, 4):
         raise ValueError(
             "Input size must be a N x 3 x 4  tensor. Got {}".format(
-                rotation_matrix.shape))
+                rotation_matrix.shape
+            )
+        )
 
     rmat_t = torch.transpose(rotation_matrix, 1, 2)
 
@@ -728,27 +717,51 @@ def rotation_matrix_to_quaternion(rotation_matrix, eps=1e-6):
     mask_d0_nd1 = rmat_t[:, 0, 0] < -rmat_t[:, 1, 1]
 
     t0 = 1 + rmat_t[:, 0, 0] - rmat_t[:, 1, 1] - rmat_t[:, 2, 2]
-    q0 = torch.stack([rmat_t[:, 1, 2] - rmat_t[:, 2, 1],
-                      t0, rmat_t[:, 0, 1] + rmat_t[:, 1, 0],
-                      rmat_t[:, 2, 0] + rmat_t[:, 0, 2]], -1)
+    q0 = torch.stack(
+        [
+            rmat_t[:, 1, 2] - rmat_t[:, 2, 1],
+            t0,
+            rmat_t[:, 0, 1] + rmat_t[:, 1, 0],
+            rmat_t[:, 2, 0] + rmat_t[:, 0, 2],
+        ],
+        -1,
+    )
     t0_rep = t0.repeat(4, 1).t()
 
     t1 = 1 - rmat_t[:, 0, 0] + rmat_t[:, 1, 1] - rmat_t[:, 2, 2]
-    q1 = torch.stack([rmat_t[:, 2, 0] - rmat_t[:, 0, 2],
-                      rmat_t[:, 0, 1] + rmat_t[:, 1, 0],
-                      t1, rmat_t[:, 1, 2] + rmat_t[:, 2, 1]], -1)
+    q1 = torch.stack(
+        [
+            rmat_t[:, 2, 0] - rmat_t[:, 0, 2],
+            rmat_t[:, 0, 1] + rmat_t[:, 1, 0],
+            t1,
+            rmat_t[:, 1, 2] + rmat_t[:, 2, 1],
+        ],
+        -1,
+    )
     t1_rep = t1.repeat(4, 1).t()
 
     t2 = 1 - rmat_t[:, 0, 0] - rmat_t[:, 1, 1] + rmat_t[:, 2, 2]
-    q2 = torch.stack([rmat_t[:, 0, 1] - rmat_t[:, 1, 0],
-                      rmat_t[:, 2, 0] + rmat_t[:, 0, 2],
-                      rmat_t[:, 1, 2] + rmat_t[:, 2, 1], t2], -1)
+    q2 = torch.stack(
+        [
+            rmat_t[:, 0, 1] - rmat_t[:, 1, 0],
+            rmat_t[:, 2, 0] + rmat_t[:, 0, 2],
+            rmat_t[:, 1, 2] + rmat_t[:, 2, 1],
+            t2,
+        ],
+        -1,
+    )
     t2_rep = t2.repeat(4, 1).t()
 
     t3 = 1 + rmat_t[:, 0, 0] + rmat_t[:, 1, 1] + rmat_t[:, 2, 2]
-    q3 = torch.stack([t3, rmat_t[:, 1, 2] - rmat_t[:, 2, 1],
-                      rmat_t[:, 2, 0] - rmat_t[:, 0, 2],
-                      rmat_t[:, 0, 1] - rmat_t[:, 1, 0]], -1)
+    q3 = torch.stack(
+        [
+            t3,
+            rmat_t[:, 1, 2] - rmat_t[:, 2, 1],
+            rmat_t[:, 2, 0] - rmat_t[:, 0, 2],
+            rmat_t[:, 0, 1] - rmat_t[:, 1, 0],
+        ],
+        -1,
+    )
     t3_rep = t3.repeat(4, 1).t()
 
     mask_c0 = mask_d2 * mask_d0_d1
@@ -764,8 +777,12 @@ def rotation_matrix_to_quaternion(rotation_matrix, eps=1e-6):
     mask_c3 = mask_c3.view(-1, 1).type_as(q3)
 
     q = q0 * mask_c0 + q1 * mask_c1 + q2 * mask_c2 + q3 * mask_c3
-    q /= torch.sqrt(t0_rep * mask_c0 + t1_rep * mask_c1 +  # noqa
-                    t2_rep * mask_c2 + t3_rep * mask_c3)  # noqa
+    q /= torch.sqrt(
+        t0_rep * mask_c0
+        + t1_rep * mask_c1  # noqa
+        + t2_rep * mask_c2
+        + t3_rep * mask_c3
+    )  # noqa
     q *= 0.5
     return q
 
@@ -790,12 +807,14 @@ def quaternion_to_angle_axis(quaternion: torch.Tensor) -> torch.Tensor:
         >>> angle_axis = tgm.quaternion_to_angle_axis(quaternion)  # Nx3
     """
     if not torch.is_tensor(quaternion):
-        raise TypeError("Input type is not a torch.Tensor. Got {}".format(
-            type(quaternion)))
+        raise TypeError(
+            "Input type is not a torch.Tensor. Got {}".format(type(quaternion))
+        )
 
     if not quaternion.shape[-1] == 4:
-        raise ValueError("Input must be a tensor of shape Nx4 or 4. Got {}"
-                         .format(quaternion.shape))
+        raise ValueError(
+            "Input must be a tensor of shape Nx4 or 4. Got {}".format(quaternion.shape)
+        )
     # unpack input and compute conversion
     q1: torch.Tensor = quaternion[..., 1]
     q2: torch.Tensor = quaternion[..., 2]
@@ -807,7 +826,8 @@ def quaternion_to_angle_axis(quaternion: torch.Tensor) -> torch.Tensor:
     two_theta: torch.Tensor = 2.0 * torch.where(
         cos_theta < 0.0,
         torch.atan2(-sin_theta, -cos_theta),
-        torch.atan2(sin_theta, cos_theta))
+        torch.atan2(sin_theta, cos_theta),
+    )
 
     k_pos: torch.Tensor = two_theta / sin_theta
     k_neg: torch.Tensor = 2.0 * torch.ones_like(sin_theta)
@@ -818,6 +838,7 @@ def quaternion_to_angle_axis(quaternion: torch.Tensor) -> torch.Tensor:
     angle_axis[..., 1] += q2 * k
     angle_axis[..., 2] += q3 * k
     return angle_axis
+
 
 def avg_rot(rot):
     # input [B,...,3,3] --> output [...,3,3]

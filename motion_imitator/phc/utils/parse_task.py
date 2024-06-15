@@ -44,7 +44,9 @@ import numpy as np
 
 
 def warn_task_name():
-    raise Exception("Unrecognized task!\nTask should be one of: [BallBalance, Cartpole, CartpoleYUp, Ant, Humanoid, Anymal, FrankaCabinet, Quadcopter, ShadowHand, ShadowHandLSTM, ShadowHandFFOpenAI, ShadowHandFFOpenAITest, ShadowHandOpenAI, ShadowHandOpenAITest, Ingenuity]")
+    raise Exception(
+        "Unrecognized task!\nTask should be one of: [BallBalance, Cartpole, CartpoleYUp, Ant, Humanoid, Anymal, FrankaCabinet, Quadcopter, ShadowHand, ShadowHandLSTM, ShadowHandFFOpenAI, ShadowHandFFOpenAITest, ShadowHandOpenAI, ShadowHandOpenAITest, Ingenuity]"
+    )
 
 
 def parse_task(args, cfg, cfg_train, sim_params):
@@ -57,7 +59,16 @@ def parse_task(args, cfg, cfg_train, sim_params):
     cfg_task = cfg["env"]
     cfg_task["seed"] = cfg["seed"]
 
-    task = eval(args.task)(cfg=cfg, sim_params=sim_params, physics_engine=args.physics_engine, device_type=args.device, device_id=device_id, headless=args.headless)
-    env = VecTaskPythonWrapper(task, rl_device, cfg_train.get("clip_observations", np.inf))
+    task = eval(args.task)(
+        cfg=cfg,
+        sim_params=sim_params,
+        physics_engine=args.physics_engine,
+        device_type=args.device,
+        device_id=device_id,
+        headless=args.headless,
+    )
+    env = VecTaskPythonWrapper(
+        task, rl_device, cfg_train.get("clip_observations", np.inf)
+    )
 
     return task, env

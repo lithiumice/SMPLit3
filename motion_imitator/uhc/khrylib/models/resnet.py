@@ -24,8 +24,9 @@ class ResNet(nn.Module):
                 m.track_running_stats = track_running_stats
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import time
+
     net = ResNet(128)
     t0 = time.time()
     input = ones(1, 3, 224, 224)

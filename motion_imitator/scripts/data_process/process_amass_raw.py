@@ -82,8 +82,9 @@ all_sequences = [
     "TotalCapture",
     "Transitions_mocap",
     "BMLhandball",
-    "DanceDB"
+    "DanceDB",
 ]
+
 
 def read_data(folder, sequences):
     # sequences = [osp.join(folder, x) for x in sorted(os.listdir(folder)) if osp.isdir(osp.join(folder, x))]
@@ -113,7 +114,7 @@ def read_single_sequence(folder, seq_name):
         if not osp.isdir(osp.join(folder, subject)):
             continue
         actions = [
-            x for x in os.listdir(osp.join(folder, subject)) if x.endswith(".npz") 
+            x for x in os.listdir(osp.join(folder, subject)) if x.endswith(".npz")
         ]
 
         for action in actions:
@@ -169,11 +170,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dir", type=str, help="dataset directory", default="data/amass"
     )
+    parser.add_argument("--out_dir", type=str, help="dataset directory", default="out")
     parser.add_argument(
-        "--out_dir", type=str, help="dataset directory", default="out"
-    )
-    parser.add_argument(
-        '--sequences', type=str, nargs='+', help='which sequences to use', default=all_sequences
+        "--sequences",
+        type=str,
+        nargs="+",
+        help="which sequences to use",
+        default=all_sequences,
     )
 
     args = parser.parse_args()
@@ -182,7 +185,6 @@ if __name__ == "__main__":
     db_file = osp.join(out_path, "amass_db_smplh.pt")
 
     db = read_data(args.dir, sequences=args.sequences)
-     
-    
+
     print(f"Saving AMASS dataset to {db_file}")
     joblib.dump(db, db_file)

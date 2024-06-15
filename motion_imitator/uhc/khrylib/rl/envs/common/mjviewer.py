@@ -9,6 +9,7 @@ from mujoco_py.utils import rec_copy, rec_assign
 import numpy as np
 import imageio
 
+
 class MjViewerBasic(cymj.MjRenderContextWindow):
     """
     A simple display GUI showing the scene of an :class:`.MjSim` with a mouse-movable camera.
@@ -154,7 +155,7 @@ class MjViewer(MjViewerBasic):
         self._transparent = False  # Make everything transparent.
 
         # this variable is estamated as a running average.
-        
+
         self._hide_overlay = False  # hide the entire overlay.
         self._user_overlay = {}
 

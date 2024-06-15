@@ -24,7 +24,7 @@ import os
 import sys
 
 file_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(os.path.join(file_path, '..'))
+sys.path.append(os.path.join(file_path, ".."))
 
 import glob
 from datetime import datetime
@@ -38,10 +38,22 @@ from holden.Quaternions import Quaternions
 from human_body_prior.tools.omni_tools import copy2cpu as c2c
 from human_body_prior.tools.omni_tools import log2file, makepath
 from nemf.fk import ForwardKinematicsLayer
-from nemf_rotations import axis_angle_to_matrix, axis_angle_to_quaternion, matrix_to_rotation_6d, rotation_6d_to_matrix
+from nemf_rotations import (
+    axis_angle_to_matrix,
+    axis_angle_to_quaternion,
+    matrix_to_rotation_6d,
+    rotation_6d_to_matrix,
+)
 from torch.utils.data import Dataset
 from tqdm import tqdm
-from nemf_utils import CONTACTS_IDX, align_joints, build_canonical_frame, estimate_angular_velocity, estimate_linear_velocity, normalize
+from nemf_utils import (
+    CONTACTS_IDX,
+    align_joints,
+    build_canonical_frame,
+    estimate_angular_velocity,
+    estimate_linear_velocity,
+    normalize,
+)
 import json
 
 
@@ -50,9 +62,14 @@ def dump_amass2pytroch(datasets, amass_dir, out_posepath, logger=None):
 
     if logger is None:
         starttime = datetime.now().replace(microsecond=0)
-        log_name = datetime.strftime(starttime, '%Y%m%d_%H%M')
-        logger = log2file(out_posepath.replace(f'pose-{args.data.gender}-{args.data.clip_length}-{args.data.fps}fps.pt', '%s.log' % (log_name)))
-        logger('Creating pytorch dataset at %s' % out_posepath)
+        log_name = datetime.strftime(starttime, "%Y%m%d_%H%M")
+        logger = log2file(
+            out_posepath.replace(
+                f"pose-{args.data.gender}-{args.data.clip_length}-{args.data.fps}fps.pt",
+                "%s.log" % (log_name),
+            )
+        )
+        logger("Creating pytorch dataset at %s" % out_posepath)
 
     data_poses = []
     data_trans = []
@@ -60,25 +77,25 @@ def dump_amass2pytroch(datasets, amass_dir, out_posepath, logger=None):
 
     clip_frames = args.data.clip_length
     for ds_name in datasets:
-        npz_fnames = glob.glob(os.path.join(amass_dir, ds_name, '*/*_poses_*.npz'))
-        logger('processing data points from %s.' % (ds_name))
+        npz_fnames = glob.glob(os.path.join(amass_dir, ds_name, "*/*_poses_*.npz"))
+        logger("processing data points from %s." % (ds_name))
         for npz_fname in tqdm(npz_fnames):
             try:
                 cdata = np.load(npz_fname)
             except:
-                logger('Could not read %s! skipping..' % npz_fname)
+                logger("Could not read %s! skipping.." % npz_fname)
                 continue
-            N = len(cdata['pose_body'])
-            gender = str(cdata['gender'])
-            if gender.startswith('b'):
-                gender = str(cdata['gender'], encoding='utf-8')
+            N = len(cdata["pose_body"])
+            gender = str(cdata["gender"])
+            if gender.startswith("b"):
+                gender = str(cdata["gender"], encoding="utf-8")
 
             # Only process data with the specific gender.
             if gender != args.data.gender:
                 continue
 
-            root_orient = cdata['root_orient']
-            pose_body = cdata['pose_body']
+            root_orient = cdata["root_orient"]
+            pose_body = cdata["pose_body"]
             poses = np.concatenate((root_orient, pose_body, np.zeros((N, 6))), axis=1)
             # Chop the data into evenly splitted sequence clips.
             nclips = [np.arange(i, i + clip_frames) for i in range(0, N, clip_frames)]
@@ -86,8 +103,8 @@ def dump_amass2pytroch(datasets, amass_dir, out_posepath, logger=None):
                 nclips.pop()
             for clip in nclips:
                 data_poses.append(poses[clip])
-                data_trans.append(cdata['trans'][clip])
-                data_contacts.append(cdata['contacts'][clip])
+                data_trans.append(cdata["trans"][clip])
+                data_contacts.append(cdata["contacts"][clip])
                 # if ds_name in ['MPI_HDM05', 'SFU', 'MPI_mosh']:
                 #     print(npz_fname)
 
@@ -98,7 +115,9 @@ def dump_amass2pytroch(datasets, amass_dir, out_posepath, logger=None):
     device = torch.device("cpu")  # when GPU memory is limited
     pose = torch.from_numpy(np.asarray(data_poses, np.float32)).to(device)
     pose = pose.view(-1, clip_frames, 24, 3)  # axis-angle (N, T, J, 3)
-    trans = torch.from_numpy(np.asarray(data_trans, np.float32)).to(device)  # global translation (N, T, 3)
+    trans = torch.from_numpy(np.asarray(data_trans, np.float32)).to(
+        device
+    )  # global translation (N, T, 3)
 
     # Compute necessary data for model training.
     rotmat = axis_angle_to_matrix(pose)  # rotation matrix (N, T, J, 3, 3)
@@ -113,26 +132,38 @@ def dump_amass2pytroch(datasets, amass_dir, out_posepath, logger=None):
 
     rot6d = matrix_to_rotation_6d(rotmat)  # 6D rotation representation (N, T, J, 6)
     rot_seq = rotmat.clone()
-    angular = estimate_angular_velocity(rot_seq, dt=1.0 / args.data.fps)  # angular velocity of all the joints (N, T, J, 3)
+    angular = estimate_angular_velocity(
+        rot_seq, dt=1.0 / args.data.fps
+    )  # angular velocity of all the joints (N, T, J, 3)
 
     fk = ForwardKinematicsLayer(args, device=device)
     pos, global_xform = fk(rot6d.view(-1, 24, 6))
-    pos = pos.contiguous().view(-1, clip_frames, 24, 3)  # local joint positions (N, T, J, 3)
-    global_xform = global_xform.view(-1, clip_frames, 24, 4, 4)  # global transformation matrix for each joint (N, T, J, 4, 4)
-    velocity = estimate_linear_velocity(pos, dt=1.0 / args.data.fps)  # linear velocity of all the joints (N, T, J, 3)
+    pos = pos.contiguous().view(
+        -1, clip_frames, 24, 3
+    )  # local joint positions (N, T, J, 3)
+    global_xform = global_xform.view(
+        -1, clip_frames, 24, 4, 4
+    )  # global transformation matrix for each joint (N, T, J, 4, 4)
+    velocity = estimate_linear_velocity(
+        pos, dt=1.0 / args.data.fps
+    )  # linear velocity of all the joints (N, T, J, 3)
 
     contacts = torch.from_numpy(np.asarray(data_contacts, np.float32)).to(device)
     contacts = contacts[:, :, CONTACTS_IDX]  # contacts information (N, T, 8)
 
     if args.unified_orientation:
         root_rotation = rotation_6d_to_matrix(root_orient)  # (N, T, 3, 3)
-        root_rotation = root_rotation.unsqueeze(2).repeat(1, 1, args.smpl.joint_num, 1, 1)  # (N, T, J, 3, 3)
+        root_rotation = root_rotation.unsqueeze(2).repeat(
+            1, 1, args.smpl.joint_num, 1, 1
+        )  # (N, T, J, 3, 3)
         global_pos = torch.matmul(root_rotation, pos.unsqueeze(-1)).squeeze(-1)
         height = global_pos + trans.unsqueeze(2)
     else:
         height = pos + trans.unsqueeze(2)
-    height = height[:, :, :, 'xyz'.index(args.data.up)]  # (N, T, J)
-    root_vel = estimate_linear_velocity(trans, dt=1.0 / args.data.fps)  # linear velocity of the root joint (N, T, 3)
+    height = height[:, :, :, "xyz".index(args.data.up)]  # (N, T, J)
+    root_vel = estimate_linear_velocity(
+        trans, dt=1.0 / args.data.fps
+    )  # linear velocity of the root joint (N, T, 3)
 
     _, rotmat_mean, rotmat_std = normalize(rotmat)
     _, pos_mean, pos_std = normalize(pos)
@@ -142,34 +173,44 @@ def dump_amass2pytroch(datasets, amass_dir, out_posepath, logger=None):
     _, contacts_mean, contacts_std = normalize(contacts)
 
     mean = {
-        'rotmat': rotmat_mean.detach().cpu(),
-        'pos': pos_mean.detach().cpu(),
-        'trans': trans_mean.detach().cpu(),
-        'root_vel': root_vel_mean.detach().cpu(),
-        'height': height_mean.detach().cpu(),
-        'contacts': contacts_mean.detach().cpu()
+        "rotmat": rotmat_mean.detach().cpu(),
+        "pos": pos_mean.detach().cpu(),
+        "trans": trans_mean.detach().cpu(),
+        "root_vel": root_vel_mean.detach().cpu(),
+        "height": height_mean.detach().cpu(),
+        "contacts": contacts_mean.detach().cpu(),
     }
     std = {
-        'rotmat': rotmat_std.detach().cpu(),
-        'pos': pos_std.detach().cpu(),
-        'trans': trans_std.detach().cpu(),
-        'root_vel': root_vel_std.detach().cpu(),
-        'height': height_std.detach().cpu(),
-        'contacts': contacts_std.detach().cpu()
+        "rotmat": rotmat_std.detach().cpu(),
+        "pos": pos_std.detach().cpu(),
+        "trans": trans_std.detach().cpu(),
+        "root_vel": root_vel_std.detach().cpu(),
+        "height": height_std.detach().cpu(),
+        "contacts": contacts_std.detach().cpu(),
     }
 
-    torch.save(rotmat.detach().cpu(), out_posepath.replace('pose', 'rotmat'))  # (N, T, J, 3, 3)
-    torch.save(pos.detach().cpu(), out_posepath.replace('pose', 'pos'))  # (N, T, J, 3)
-    torch.save(trans.detach().cpu(), out_posepath.replace('pose', 'trans'))  # (N, T, 3)
-    torch.save(root_vel.detach().cpu(), out_posepath.replace('pose', 'root_vel'))  # (N, T, 3)
-    torch.save(height.detach().cpu(), out_posepath.replace('pose', 'height'))  # (N, T, J)
-    torch.save(contacts.detach().cpu(), out_posepath.replace('pose', 'contacts'))  # (N, T, J)
+    torch.save(
+        rotmat.detach().cpu(), out_posepath.replace("pose", "rotmat")
+    )  # (N, T, J, 3, 3)
+    torch.save(pos.detach().cpu(), out_posepath.replace("pose", "pos"))  # (N, T, J, 3)
+    torch.save(trans.detach().cpu(), out_posepath.replace("pose", "trans"))  # (N, T, 3)
+    torch.save(
+        root_vel.detach().cpu(), out_posepath.replace("pose", "root_vel")
+    )  # (N, T, 3)
+    torch.save(
+        height.detach().cpu(), out_posepath.replace("pose", "height")
+    )  # (N, T, J)
+    torch.save(
+        contacts.detach().cpu(), out_posepath.replace("pose", "contacts")
+    )  # (N, T, J)
 
     if args.canonical:
         forward = rotmat[:, :, 0, :, 2].clone()
         canonical_frame = build_canonical_frame(forward, up_axis=args.data.up)
         root_rotation = canonical_frame.transpose(-2, -1)  # (N, T, 3, 3)
-        root_rotation = root_rotation.unsqueeze(2).repeat(1, 1, args.smpl.joint_num, 1, 1)  # (N, T, J, 3, 3)
+        root_rotation = root_rotation.unsqueeze(2).repeat(
+            1, 1, args.smpl.joint_num, 1, 1
+        )  # (N, T, J, 3, 3)
 
         theta = torch.atan2(forward[..., 1], forward[..., 0])
         dt = 1.0 / args.data.fps
@@ -189,25 +230,35 @@ def dump_amass2pytroch(datasets, amass_dir, out_posepath, logger=None):
         _, local_rot_mean, local_rot_std = normalize(local_rot)
         _, local_ang_mean, local_ang_std = normalize(local_ang)
 
-        mean['forward'] = forward_mean.detach().cpu()
-        mean['forward_ang'] = forward_ang_mean.detach().cpu()
-        mean['local_pos'] = local_pos_mean.detach().cpu()
-        mean['local_vel'] = local_vel_mean.detach().cpu()
-        mean['local_rot'] = local_rot_mean.detach().cpu()
-        mean['local_ang'] = local_ang_mean.detach().cpu()
+        mean["forward"] = forward_mean.detach().cpu()
+        mean["forward_ang"] = forward_ang_mean.detach().cpu()
+        mean["local_pos"] = local_pos_mean.detach().cpu()
+        mean["local_vel"] = local_vel_mean.detach().cpu()
+        mean["local_rot"] = local_rot_mean.detach().cpu()
+        mean["local_ang"] = local_ang_mean.detach().cpu()
 
-        std['forward'] = forward_std.detach().cpu()
-        std['forward_ang'] = forward_ang_std.detach().cpu()
-        std['local_pos'] = local_pos_std.detach().cpu()
-        std['local_vel'] = local_vel_std.detach().cpu()
-        std['local_rot'] = local_rot_std.detach().cpu()
-        std['local_ang'] = local_ang_std.detach().cpu()
+        std["forward"] = forward_std.detach().cpu()
+        std["forward_ang"] = forward_ang_std.detach().cpu()
+        std["local_pos"] = local_pos_std.detach().cpu()
+        std["local_vel"] = local_vel_std.detach().cpu()
+        std["local_rot"] = local_rot_std.detach().cpu()
+        std["local_ang"] = local_ang_std.detach().cpu()
 
-        torch.save(forward.detach().cpu(), out_posepath.replace('pose', 'forward'))  # (N, T, 3)
-        torch.save(local_pos.detach().cpu(), out_posepath.replace('pose', 'local_pos'))  # (N, T, J, 3)
-        torch.save(local_vel.detach().cpu(), out_posepath.replace('pose', 'local_vel'))  # (N, T, J, 3)
-        torch.save(local_rot.detach().cpu(), out_posepath.replace('pose', 'local_rot'))  # (N, T, J, 6)
-        torch.save(local_ang.detach().cpu(), out_posepath.replace('pose', 'local_ang'))  # (N, T, J, 3)
+        torch.save(
+            forward.detach().cpu(), out_posepath.replace("pose", "forward")
+        )  # (N, T, 3)
+        torch.save(
+            local_pos.detach().cpu(), out_posepath.replace("pose", "local_pos")
+        )  # (N, T, J, 3)
+        torch.save(
+            local_vel.detach().cpu(), out_posepath.replace("pose", "local_vel")
+        )  # (N, T, J, 3)
+        torch.save(
+            local_rot.detach().cpu(), out_posepath.replace("pose", "local_rot")
+        )  # (N, T, J, 6)
+        torch.save(
+            local_ang.detach().cpu(), out_posepath.replace("pose", "local_ang")
+        )  # (N, T, J, 3)
     else:
         global_xform = global_xform[:, :, :, :3, :3]  # (N, T, J, 3, 3)
         global_xform = matrix_to_rotation_6d(global_xform)  # (N, T, J, 6)
@@ -218,60 +269,71 @@ def dump_amass2pytroch(datasets, amass_dir, out_posepath, logger=None):
         _, velocity_mean, velocity_std = normalize(velocity)
         _, orientation_mean, orientation_std = normalize(root_orient)
 
-        mean['rot6d'] = rot6d_mean.detach().cpu()
-        mean['angular'] = angular_mean.detach().cpu()
-        mean['global_xform'] = global_xform_mean.detach().cpu()
-        mean['velocity'] = velocity_mean.detach().cpu()
-        mean['root_orient'] = orientation_mean.detach().cpu()
+        mean["rot6d"] = rot6d_mean.detach().cpu()
+        mean["angular"] = angular_mean.detach().cpu()
+        mean["global_xform"] = global_xform_mean.detach().cpu()
+        mean["velocity"] = velocity_mean.detach().cpu()
+        mean["root_orient"] = orientation_mean.detach().cpu()
 
-        std['rot6d'] = rot6d_std.detach().cpu()
-        std['angular'] = angular_std.detach().cpu()
-        std['global_xform'] = global_xform_std.detach().cpu()
-        std['velocity'] = velocity_std.detach().cpu()
-        std['root_orient'] = orientation_std.detach().cpu()
+        std["rot6d"] = rot6d_std.detach().cpu()
+        std["angular"] = angular_std.detach().cpu()
+        std["global_xform"] = global_xform_std.detach().cpu()
+        std["velocity"] = velocity_std.detach().cpu()
+        std["root_orient"] = orientation_std.detach().cpu()
 
-        torch.save(rot6d.detach().cpu(), out_posepath.replace('pose', 'rot6d'))  # (N, T, J, 6)
-        torch.save(angular.detach().cpu(), out_posepath.replace('pose', 'angular'))  # (N, T, J, 3)
-        torch.save(global_xform.detach().cpu(), out_posepath.replace('pose', 'global_xform'))  # (N, T, J, 6)
-        torch.save(velocity.detach().cpu(), out_posepath.replace('pose', 'velocity'))  # (N, T, J, 3)
-        torch.save(root_orient.detach().cpu(), out_posepath.replace('pose', 'root_orient'))  # (N, T, 3, 3)
+        torch.save(
+            rot6d.detach().cpu(), out_posepath.replace("pose", "rot6d")
+        )  # (N, T, J, 6)
+        torch.save(
+            angular.detach().cpu(), out_posepath.replace("pose", "angular")
+        )  # (N, T, J, 3)
+        torch.save(
+            global_xform.detach().cpu(), out_posepath.replace("pose", "global_xform")
+        )  # (N, T, J, 6)
+        torch.save(
+            velocity.detach().cpu(), out_posepath.replace("pose", "velocity")
+        )  # (N, T, J, 3)
+        torch.save(
+            root_orient.detach().cpu(), out_posepath.replace("pose", "root_orient")
+        )  # (N, T, 3, 3)
 
     if args.normalize:
-        torch.save(mean, out_posepath.replace('pose', 'mean'))
-        torch.save(std, out_posepath.replace('pose', 'std'))
+        torch.save(mean, out_posepath.replace("pose", "mean"))
+        torch.save(std, out_posepath.replace("pose", "std"))
 
     return len(data_poses)
+
 
 def collect_amass_stats(amass_splits, amass_dir, logger=None):
     import matplotlib.pyplot as plt
 
     if logger is None:
-        log_name = os.path.join('./data/amass', 'amass_stats.log')
+        log_name = os.path.join("./data/amass", "amass_stats.log")
         if os.path.exists(log_name):
             os.remove(log_name)
         logger = log2file(log_name)
 
-    logger('Collecting stats for AMASS datasets:')
+    logger("Collecting stats for AMASS datasets:")
 
     gender_stats = {}
     fps_stats = {}
     durations = []
     for split_name, datasets in amass_splits.items():
         for ds_name in datasets:
-            logger(f'\t{ds_name} dataset')
-            npz_fnames = glob.glob(os.path.join(amass_dir, ds_name, '*/*_poses_*.npz'))
+            logger(f"\t{ds_name} dataset")
+            npz_fnames = glob.glob(os.path.join(amass_dir, ds_name, "*/*_poses_*.npz"))
             for npz_fname in tqdm(npz_fnames):
                 try:
                     cdata = np.load(npz_fname)
                 except:
-                    logger('Could not read %s! skipping..' % npz_fname)
+                    logger("Could not read %s! skipping.." % npz_fname)
                     continue
 
-                gender = str(cdata['gender'])
-                if gender.startswith('b'):
-                    gender = str(cdata['gender'], encoding='utf-8')
+                gender = str(cdata["gender"])
+                if gender.startswith("b"):
+                    gender = str(cdata["gender"], encoding="utf-8")
                 fps = 30
-                duration = len(cdata['pose_body']) / fps
+                duration = len(cdata["pose_body"]) / fps
 
                 durations.append(duration)
                 if gender in gender_stats.keys():
@@ -283,43 +345,60 @@ def collect_amass_stats(amass_splits, amass_dir, logger=None):
                 else:
                     fps_stats[fps] = 1
 
-    logger('\n')
-    logger('Total motion sequences: {:,}'.format(len(durations)))
-    logger('\tTotal Duration: {:,.2f}s'.format(sum(durations)))
-    logger('\tMin Duration: {:,.2f}s'.format(min(durations)))
-    logger('\tMax Duration: {:,.2f}s'.format(max(durations)))
-    logger('\tAverage Duration: {:,.2f}s'.format(sum(durations) / len(durations)))
-    logger('\tSequences longer than 5s: {:,} ({:.2f}%)'.format(sum(i > 5 for i in durations), sum(i > 5 for i in durations) / len(durations) * 100))
-    logger('\tSequences longer than 10s: {:,} ({:.2f}%)'.format(sum(i > 10 for i in durations), sum(i > 10 for i in durations) / len(durations) * 100))
-    logger('\n')
-    logger('Gender:')
+    logger("\n")
+    logger("Total motion sequences: {:,}".format(len(durations)))
+    logger("\tTotal Duration: {:,.2f}s".format(sum(durations)))
+    logger("\tMin Duration: {:,.2f}s".format(min(durations)))
+    logger("\tMax Duration: {:,.2f}s".format(max(durations)))
+    logger("\tAverage Duration: {:,.2f}s".format(sum(durations) / len(durations)))
+    logger(
+        "\tSequences longer than 5s: {:,} ({:.2f}%)".format(
+            sum(i > 5 for i in durations),
+            sum(i > 5 for i in durations) / len(durations) * 100,
+        )
+    )
+    logger(
+        "\tSequences longer than 10s: {:,} ({:.2f}%)".format(
+            sum(i > 10 for i in durations),
+            sum(i > 10 for i in durations) / len(durations) * 100,
+        )
+    )
+    logger("\n")
+    logger("Gender:")
     for key, value in gender_stats.items():
-        logger('\t{}: {:,} (Duration: {:,.2f}s)'.format(key, len(value), sum(value)))
-    logger('\n')
-    logger('FPS:')
+        logger("\t{}: {:,} (Duration: {:,.2f}s)".format(key, len(value), sum(value)))
+    logger("\n")
+    logger("FPS:")
     for key, value in fps_stats.items():
-        logger('\t{}: {:,}'.format(key, value))
+        logger("\t{}: {:,}".format(key, value))
 
     # Plot histograms for duration distributions.
     fig, axes = plt.subplots(3, sharex=True)
     fig.tight_layout(pad=3.0)
-    fig.suptitle('AMASS Data Duration Distribution')
+    fig.suptitle("AMASS Data Duration Distribution")
     axes[0].hist(durations, density=False, bins=100)
-    axes[0].set_title('total')
+    axes[0].set_title("total")
     for key, value in gender_stats.items():
-        if key == 'female':
+        if key == "female":
             f = axes[1]
         else:
             f = axes[2]
         f.hist(value, density=False, bins=100)
-        f.set_title(f'{key}')
+        f.set_title(f"{key}")
     # Add a big axis, hide frame.
     fig.add_subplot(111, frameon=False)
     # Hide tick and tick label of the big axis.
-    plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
+    plt.tick_params(
+        labelcolor="none",
+        which="both",
+        top=False,
+        bottom=False,
+        left=False,
+        right=False,
+    )
     plt.xlabel("Duration (second)")
     plt.ylabel("Counts", labelpad=10)
-    fig.savefig('./data/amass/duration_dist.pdf')
+    fig.savefig("./data/amass/duration_dist.pdf")
 
 
 class AMASS(Dataset):
@@ -327,33 +406,32 @@ class AMASS(Dataset):
 
     def __init__(self, dataset_dir):
         self.ds = {}
-        for data_fname in glob.glob(os.path.join(dataset_dir, '*.pt')):
-            k = os.path.basename(data_fname).split('-')[0]
+        for data_fname in glob.glob(os.path.join(dataset_dir, "*.pt")):
+            k = os.path.basename(data_fname).split("-")[0]
             self.ds[k] = torch.load(data_fname)
 
     def __len__(self):
-        return len(self.ds['trans'])
+        return len(self.ds["trans"])
 
     def __getitem__(self, idx):
-        data = {k: self.ds[k][idx] for k in self.ds.keys() if k not in ['mean', 'std']}
+        data = {k: self.ds[k][idx] for k in self.ds.keys() if k not in ["mean", "std"]}
 
         return data
 
 
-if __name__ == '__main__':
-    msg = ''' Using standard AMASS dataset preparation pipeline: 
+if __name__ == "__main__":
+    msg = """ Using standard AMASS dataset preparation pipeline: 
     0) Donwload all npz files from https://amass.is.tue.mpg.de/ 
-    1) Convert npz files to pytorch readable pt files. '''
+    1) Convert npz files to pytorch readable pt files. """
 
-
-    args = Arguments('./configs', filename='amass.yaml')
+    args = Arguments("./configs", filename="amass.yaml")
     work_dir = makepath(args.dataset_dir)
 
-    log_name = os.path.join(work_dir, 'amass.log')
+    log_name = os.path.join(work_dir, "amass.log")
     if os.path.exists(log_name):
         os.remove(log_name)
     logger = log2file(log_name)
-    logger('AMASS Data Preparation Began.')
+    logger("AMASS Data Preparation Began.")
     logger(msg)
 
     # amass_dir = '/apdcephfs/share_1290939/shaolihuang/data/InterHand/'
@@ -361,4 +439,9 @@ if __name__ == '__main__':
     # # collect_amass_stats(amass_splits, amass_dir)
     # prepare_amass(amass_splits, amass_dir, work_dir, logger=logger)
 
-    interhand_mano_anno_data = json.load(open('/apdcephfs/share_1330077/wallyliang//InterHand2.6M_train_MANO_NeuralAnnot.json','r'))
+    interhand_mano_anno_data = json.load(
+        open(
+            "/apdcephfs/share_1330077/wallyliang//InterHand2.6M_train_MANO_NeuralAnnot.json",
+            "r",
+        )
+    )

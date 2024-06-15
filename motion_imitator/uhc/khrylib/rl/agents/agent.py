@@ -6,13 +6,28 @@ import os
 from uhc.khrylib.rl.core import LoggerRL, TrajBatch
 from uhc.khrylib.utils.memory import Memory
 from uhc.khrylib.utils.torch import *
+
 os.environ["OMP_NUM_THREADS"] = "1"
 
 
 class Agent:
 
-    def __init__(self, env, policy_net, value_net, dtype, device, gamma, data_loader, custom_reward=None,
-                 end_reward=True, mean_action=False, render=False, running_state=None, num_threads=1):
+    def __init__(
+        self,
+        env,
+        policy_net,
+        value_net,
+        dtype,
+        device,
+        gamma,
+        data_loader,
+        custom_reward=None,
+        end_reward=True,
+        mean_action=False,
+        render=False,
+        running_state=None,
+        num_threads=1,
+    ):
         self.env = env
         self.policy_net = policy_net
         self.value_net = value_net
@@ -35,9 +50,9 @@ class Agent:
     def seed_worker(self, pid):
         if pid > 0:
             torch.manual_seed(torch.randint(0, 5000, (1,)) * pid)
-            np.random.seed(np.random.randint(5000)* pid)
-            if hasattr(self.env, 'np_random'):
-                self.env.np_random.rand(np.random.randint(5000 )* pid)
+            np.random.seed(np.random.randint(5000) * pid)
+            if hasattr(self.env, "np_random"):
+                self.env.np_random.rand(np.random.randint(5000) * pid)
 
     def sample_worker(self, pid, queue, min_batch_size):
         self.seed_worker(pid)
@@ -47,7 +62,7 @@ class Agent:
 
         while logger.num_steps < min_batch_size:
             self.env.load_expert(self.data_loader.sample_seq())
-            
+
             state = self.env.reset()
             if self.running_state is not None:
                 state = self.running_state(state)
@@ -57,9 +72,17 @@ class Agent:
             for t in range(10000):
                 state_var = tensor(state).unsqueeze(0)
                 trans_out = self.trans_policy(state_var)
-                mean_action = self.mean_action or self.env.np_random.binomial(1, 1 - self.noise_rate)
-                action = self.policy_net.select_action(trans_out, mean_action)[0].numpy()
-                action = int(action) if self.policy_net.type == 'discrete' else action.astype(np.float64)
+                mean_action = self.mean_action or self.env.np_random.binomial(
+                    1, 1 - self.noise_rate
+                )
+                action = self.policy_net.select_action(trans_out, mean_action)[
+                    0
+                ].numpy()
+                action = (
+                    int(action)
+                    if self.policy_net.type == "discrete"
+                    else action.astype(np.float64)
+                )
                 next_state, env_reward, done, info = self.env.step(action)
                 if self.running_state is not None:
                     next_state = self.running_state(next_state)
@@ -70,9 +93,9 @@ class Agent:
                 else:
                     c_reward, c_info = 0.0, np.array([0.0])
                     reward = env_reward
-                    
+
                 # add end reward
-                if self.end_reward and info.get('end', False):
+                if self.end_reward and info.get("end", False):
                     reward += self.env.end_reward
                 # logging
                 logger.step(self.env, env_reward, c_reward, c_info, info)
@@ -107,16 +130,18 @@ class Agent:
     def sample(self, min_batch_size):
         t_start = time.time()
         self.pre_sample()
-        to_test(*self.sample_modules) # Sending test modeuls to cpu!!!
+        to_test(*self.sample_modules)  # Sending test modeuls to cpu!!!
         with to_cpu(*self.sample_modules):
             with torch.no_grad():
                 thread_batch_size = int(math.floor(min_batch_size / self.num_threads))
                 queue = multiprocessing.Queue()
                 memories = [None] * self.num_threads
                 loggers = [None] * self.num_threads
-                for i in range(self.num_threads-1):
-                    worker_args = (i+1, queue, thread_batch_size)
-                    worker = multiprocessing.Process(target=self.sample_worker, args=worker_args)
+                for i in range(self.num_threads - 1):
+                    worker_args = (i + 1, queue, thread_batch_size)
+                    worker = multiprocessing.Process(
+                        target=self.sample_worker, args=worker_args
+                    )
                     worker.start()
                 memories[0], loggers[0] = self.sample_worker(0, None, thread_batch_size)
 

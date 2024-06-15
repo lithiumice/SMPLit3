@@ -35,5 +35,7 @@ def fbx_to_array(fbx_file_path, root_joint, fps):
     assert os.path.exists(fbx_file_path)
 
     # Parse FBX file
-    joint_names, parents, local_transforms, fbx_fps = parse_fbx(fbx_file_path, root_joint, fps)
+    joint_names, parents, local_transforms, fbx_fps = parse_fbx(
+        fbx_file_path, root_joint, fps
+    )
     return joint_names, parents, local_transforms, fbx_fps

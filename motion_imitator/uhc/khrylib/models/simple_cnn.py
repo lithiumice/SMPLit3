@@ -19,8 +19,9 @@ class SimpleCNN(nn.Module):
         return x
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import time
+
     torch.set_grad_enabled(False)
     net = SimpleCNN(128)
     t0 = time.time()

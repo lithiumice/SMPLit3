@@ -17,7 +17,9 @@ print(r)
 print(quat_rotate(r, x))
 
 angle = torch.from_numpy(np.array(np.random.rand() * 10.0, dtype=np.float32))
-axis = torch.from_numpy(np.array([1, np.random.rand() * 10.0, np.random.rand() * 10.0], dtype=np.float32),)
+axis = torch.from_numpy(
+    np.array([1, np.random.rand() * 10.0, np.random.rand() * 10.0], dtype=np.float32),
+)
 
 print(repr(angle))
 print(repr(axis))
@@ -51,6 +53,10 @@ print(t.numpy())
 print(gt)
 # assert np.allclose(t.numpy(), gt)
 
-transform2 = torch.from_numpy(np.array([[1, 0, 0, 1], [0, 0, -1, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=np.float32),)
+transform2 = torch.from_numpy(
+    np.array(
+        [[1, 0, 0, 1], [0, 0, -1, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=np.float32
+    ),
+)
 transform2 = euclidean_to_transform(transform2)
 print(transform2)

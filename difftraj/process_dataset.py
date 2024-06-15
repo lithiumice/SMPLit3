@@ -31,11 +31,10 @@ from lib.loco.trajdiff import (
     traj_global2local_heading,
     traj_local2global_heading,
     angle_axis_to_quaternion,
-    a2m,m2s,
+    a2m,
+    m2s,
 )
-from data_loaders.humanml.data.dataset import (
-    traj2d_global_to_local
-)
+from data_loaders.humanml.data.dataset import traj2d_global_to_local
 
 from human_body_prior.body_model.body_model import BodyModel
 from human_body_prior.tools.omni_tools import copy2cpu as c2c
@@ -198,8 +197,15 @@ def get_body_model(
     ),
     help="Currently, only support amass dataset.",
 )
-@click.option("--save_data_fps", type=int, default=30, help="train on 30 fps, but actually can work on other fps when inference.")
-@click.option("--win_size", type=int, default=35, help="Depend on your difftraj windows size.")
+@click.option(
+    "--save_data_fps",
+    type=int,
+    default=30,
+    help="train on 30 fps, but actually can work on other fps when inference.",
+)
+@click.option(
+    "--win_size", type=int, default=35, help="Depend on your difftraj windows size."
+)
 @click.option("--max_process_npz_num", type=int, default=-1, help="if -1, no limit.")
 def parse_dataset(
     save_train_mean_std,
@@ -222,7 +228,7 @@ def parse_dataset(
             "train": save_train_jpkl,
         }
     }
-    
+
     for in_data_type, data_info in load_pred_process_jpks.items():
         file_path = data_info[split_file]
         print(f"loading dataloader {in_data_type} and will save to {file_path}")

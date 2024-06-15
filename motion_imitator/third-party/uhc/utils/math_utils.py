@@ -10,6 +10,7 @@ from uhc.utils.transformation import (
     rotation_from_matrix,
 )
 
+
 class LinearAnneal:
     def __init__(self, start_value, end_value, total_steps):
         self.start_value = start_value
@@ -53,23 +54,20 @@ def normal_entropy(std):
 
 def normal_log_density(x, mean, log_std, std):
     var = std.pow(2)
-    log_density = -(x - mean).pow(2) / (2 * var) - 0.5 * math.log(
-        2 * math.pi) - log_std
+    log_density = -(x - mean).pow(2) / (2 * var) - 0.5 * math.log(2 * math.pi) - log_std
     return log_density.sum(1, keepdim=True)
 
 
 def get_qvel_fd_new(cur_qpos, next_qpos, dt, transform=None):
     v = (next_qpos[:3] - cur_qpos[:3]) / dt
-    qrel = quaternion_multiply(next_qpos[3:7],
-                               quaternion_inverse(cur_qpos[3:7]))
+    qrel = quaternion_multiply(next_qpos[3:7], quaternion_inverse(cur_qpos[3:7]))
     axis, angle = rotation_from_quaternion(qrel, True)
     while angle > np.pi:
         angle -= 2 * np.pi
     while angle < -np.pi:
         angle += 2 * np.pi
     rv = (axis * angle) / dt
-    rv = transform_vec(rv, cur_qpos[3:7],
-                       "root")  # angular velocity is in root coord
+    rv = transform_vec(rv, cur_qpos[3:7], "root")  # angular velocity is in root coord
     diff = next_qpos[7:] - cur_qpos[7:]
     while np.any(diff > np.pi):
         diff[diff > np.pi] -= 2 * np.pi
@@ -85,8 +83,7 @@ def get_qvel_fd_new(cur_qpos, next_qpos, dt, transform=None):
 
 def get_qvel_fd(cur_qpos, next_qpos, dt, transform=None):
     v = (next_qpos[:3] - cur_qpos[:3]) / dt
-    qrel = quaternion_multiply(next_qpos[3:7],
-                               quaternion_inverse(cur_qpos[3:7]))
+    qrel = quaternion_multiply(next_qpos[3:7], quaternion_inverse(cur_qpos[3:7]))
     # qrel /= np.linalg.norm(qrel)
     axis, angle = rotation_from_quaternion(qrel, True)
 
@@ -110,9 +107,9 @@ def get_angvel_fd(prev_bquat, cur_bquat, dt):
     n_joint = q_diff.shape[0] // 4
     body_angvel = np.zeros(n_joint * 3)
     for i in range(n_joint):
-        body_angvel[3 * i:3 * i +
-                    3] = (rotation_from_quaternion(q_diff[4 * i:4 * i + 4]) /
-                          dt)
+        body_angvel[3 * i : 3 * i + 3] = (
+            rotation_from_quaternion(q_diff[4 * i : 4 * i + 4]) / dt
+        )
     return body_angvel
 
 
@@ -199,19 +196,22 @@ def get_heading(q):
 
 
 def get_heading_new(q):
-    yaw = math.atan2(2 * (q[0] * q[3] + q[1] * q[2]),
-                     1 - 2 * (q[2] * q[2] + q[3] * q[3]))
+    yaw = math.atan2(
+        2 * (q[0] * q[3] + q[1] * q[2]), 1 - 2 * (q[2] * q[2] + q[3] * q[3])
+    )
     # pitch = math.asin(2*(q[0]*q[2] - q[1]*q[3]))
     # roll = math.atan2(2*(q[0]*q[1] + q[2]*q[3]), 1 - 2*(q[1]*q[1] + q[2]*q[2]))
     return yaw
 
 
 def get_pyr(q):
-    yaw = math.atan2(2 * (q[0] * q[3] + q[1] * q[2]),
-                     1 - 2 * (q[2] * q[2] + q[3] * q[3]))
+    yaw = math.atan2(
+        2 * (q[0] * q[3] + q[1] * q[2]), 1 - 2 * (q[2] * q[2] + q[3] * q[3])
+    )
     pitch = math.asin(2 * (q[0] * q[2] - q[1] * q[3]))
-    roll = math.atan2(2 * (q[0] * q[1] + q[2] * q[3]),
-                      1 - 2 * (q[1] * q[1] + q[2] * q[2]))
+    roll = math.atan2(
+        2 * (q[0] * q[1] + q[2] * q[3]), 1 - 2 * (q[1] * q[1] + q[2] * q[2])
+    )
     return pitch, yaw, roll
 
 
@@ -246,7 +246,7 @@ def multi_quat_norm_v2(nq):
 
     _diff = []
     for i in range(nq.shape[0] // 4):
-        q = nq[4 * i:4 * (i + 1)]
+        q = nq[4 * i : 4 * (i + 1)]
         d = np.array([abs(q[0]) - 1.0, q[1], q[2], q[3]])
         _diff.append(np.linalg.norm(d))
     return np.array(_diff)
@@ -275,10 +275,11 @@ def quat_from_expmap(e):
 
 
 def quat_correct(quat):
-    """ Converts quaternion to minimize Euclidean distance from previous quaternion (wxyz order) """
+    """Converts quaternion to minimize Euclidean distance from previous quaternion (wxyz order)"""
     for q in range(1, quat.shape[0]):
         if np.linalg.norm(quat[q - 1] - quat[q], axis=0) > np.linalg.norm(
-                quat[q - 1] + quat[q], axis=0):
+            quat[q - 1] + quat[q], axis=0
+        ):
             quat[q] = -quat[q]
     return quat
 
@@ -298,25 +299,30 @@ def op_to_root_orient(op_3d_pos):
     body_triangle_c = body_triangle[:, 2, :]
 
     num_s = body_triangle_c.shape[0]
-    y_axis = np.cross((body_triangle_c - body_triangle_a),
-                      (body_triangle_b - body_triangle_a))
+    y_axis = np.cross(
+        (body_triangle_c - body_triangle_a), (body_triangle_b - body_triangle_a)
+    )
     y_axis = y_axis / np.linalg.norm(y_axis, axis=1)[:, None]
-    x_axis = (body_triangle_c - body_triangle_b)
+    x_axis = body_triangle_c - body_triangle_b
     x_axis = x_axis / np.linalg.norm(x_axis, axis=1)[:, None]
     z_axis = np.cross(
         x_axis,
         y_axis,
     )
     np_rotmat = np.stack([x_axis, y_axis, z_axis], axis=1).transpose(0, 2, 1)
-    root_mat = np.array([[[1., 0., 0.], [0., 0., -1.], [0., 1., 0.]]])
+    root_mat = np.array([[[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]]])
     root_mat = np.matmul(np_rotmat, root_mat)
     return root_mat
 
 
 def smpl_op_to_op(pred_joints2d):
-    new_2d = np.concatenate([pred_joints2d[..., [1, 4], :].mean(axis = -2, keepdims = True), \
-                             pred_joints2d[..., 1:8, :], \
-                             pred_joints2d[..., 9:11, :], \
-                             pred_joints2d[..., 12:, :]], \
-                             axis = -2)
+    new_2d = np.concatenate(
+        [
+            pred_joints2d[..., [1, 4], :].mean(axis=-2, keepdims=True),
+            pred_joints2d[..., 1:8, :],
+            pred_joints2d[..., 9:11, :],
+            pred_joints2d[..., 12:, :],
+        ],
+        axis=-2,
+    )
     return new_2d

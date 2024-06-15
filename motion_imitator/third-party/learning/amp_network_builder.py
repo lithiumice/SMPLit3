@@ -36,6 +36,7 @@ import numpy as np
 
 DISC_LOGIT_INIT_SCALE = 1.0
 
+
 class AMPBuilder(network_builder.A2CBuilder):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -46,13 +47,20 @@ class AMPBuilder(network_builder.A2CBuilder):
             super().__init__(params, **kwargs)
 
             if self.is_continuous:
-                if (not self.space_config['learn_sigma']):
-                    actions_num = kwargs.get('actions_num')
-                    sigma_init = self.init_factory.create(**self.space_config['sigma_init'])
-                    self.sigma = nn.Parameter(torch.zeros(actions_num, requires_grad=False, dtype=torch.float32), requires_grad=False)
+                if not self.space_config["learn_sigma"]:
+                    actions_num = kwargs.get("actions_num")
+                    sigma_init = self.init_factory.create(
+                        **self.space_config["sigma_init"]
+                    )
+                    self.sigma = nn.Parameter(
+                        torch.zeros(
+                            actions_num, requires_grad=False, dtype=torch.float32
+                        ),
+                        requires_grad=False,
+                    )
                     sigma_init(self.sigma)
-                    
-            amp_input_shape = kwargs.get('amp_input_shape')
+
+            amp_input_shape = kwargs.get("amp_input_shape")
             self._build_disc(amp_input_shape)
 
             return
@@ -60,14 +68,14 @@ class AMPBuilder(network_builder.A2CBuilder):
         def load(self, params):
             super().load(params)
 
-            self._disc_units = params['disc']['units']
-            self._disc_activation = params['disc']['activation']
-            self._disc_initializer = params['disc']['initializer']
+            self._disc_units = params["disc"]["units"]
+            self._disc_activation = params["disc"]["activation"]
+            self._disc_initializer = params["disc"]["initializer"]
             return
 
         def forward(self, obs_dict):
-            obs = obs_dict['obs']
-            states = obs_dict.get('rnn_states', None)
+            obs = obs_dict["obs"]
+            states = obs_dict.get("rnn_states", None)
 
             actor_outputs = self.eval_actor(obs)
             value = self.eval_critic(obs)
@@ -80,7 +88,7 @@ class AMPBuilder(network_builder.A2CBuilder):
             a_out = self.actor_cnn(obs)
             a_out = a_out.contiguous().view(a_out.size(0), -1)
             a_out = self.actor_mlp(a_out)
-                     
+
             if self.is_discrete:
                 logits = self.logits(a_out)
                 return logits
@@ -91,7 +99,7 @@ class AMPBuilder(network_builder.A2CBuilder):
 
             if self.is_continuous:
                 mu = self.mu_act(self.mu(a_out))
-                if self.space_config['fixed_sigma']:
+                if self.space_config["fixed_sigma"]:
                     sigma = mu * 0.0 + self.sigma_act(self.sigma)
                 else:
                     sigma = self.sigma_act(self.sigma(a_out))
@@ -102,7 +110,7 @@ class AMPBuilder(network_builder.A2CBuilder):
         def eval_critic(self, obs):
             c_out = self.critic_cnn(obs)
             c_out = c_out.contiguous().view(c_out.size(0), -1)
-            c_out = self.critic_mlp(c_out)              
+            c_out = self.critic_mlp(c_out)
             value = self.value_act(self.value(c_out))
             return value
 
@@ -127,13 +135,13 @@ class AMPBuilder(network_builder.A2CBuilder):
             self._disc_mlp = nn.Sequential()
 
             mlp_args = {
-                'input_size' : input_shape[0], 
-                'units' : self._disc_units, 
-                'activation' : self._disc_activation, 
-                'dense_func' : torch.nn.Linear
+                "input_size": input_shape[0],
+                "units": self._disc_units,
+                "activation": self._disc_activation,
+                "dense_func": torch.nn.Linear,
             }
             self._disc_mlp = self._build_mlp(**mlp_args)
-            
+
             mlp_out_size = self._disc_units[-1]
             self._disc_logits = torch.nn.Linear(mlp_out_size, 1)
 
@@ -142,10 +150,12 @@ class AMPBuilder(network_builder.A2CBuilder):
                 if isinstance(m, nn.Linear):
                     mlp_init(m.weight)
                     if getattr(m, "bias", None) is not None:
-                        torch.nn.init.zeros_(m.bias) 
+                        torch.nn.init.zeros_(m.bias)
 
-            torch.nn.init.uniform_(self._disc_logits.weight, -DISC_LOGIT_INIT_SCALE, DISC_LOGIT_INIT_SCALE)
-            torch.nn.init.zeros_(self._disc_logits.bias) 
+            torch.nn.init.uniform_(
+                self._disc_logits.weight, -DISC_LOGIT_INIT_SCALE, DISC_LOGIT_INIT_SCALE
+            )
+            torch.nn.init.zeros_(self._disc_logits.bias)
 
             return
 

@@ -21,18 +21,20 @@ from uhc.utils.math_utils import *
 from uhc.smpllib.smpl_mujoco import smpl_to_qpose, qpos_to_smpl
 import copy
 
-def compute_metrics_lite(pred_pos_all, gt_pos_all, root_idx = 0, use_tqdm = True, concatenate = True):
+
+def compute_metrics_lite(
+    pred_pos_all, gt_pos_all, root_idx=0, use_tqdm=True, concatenate=True
+):
     metrics = defaultdict(list)
     if use_tqdm:
         pbar = tqdm(range(len(pred_pos_all)))
     else:
         pbar = range(len(pred_pos_all))
-        
+
     for idx in pbar:
         jpos_pred = pred_pos_all[idx].copy()
         jpos_gt = gt_pos_all[idx].copy()
-        mpjpe_g = np.linalg.norm(jpos_gt - jpos_pred, axis=2)  * 1000
-        
+        mpjpe_g = np.linalg.norm(jpos_gt - jpos_pred, axis=2) * 1000
 
         vel_dist = (compute_error_vel(jpos_pred, jpos_gt)) * 1000
         accel_dist = (compute_error_accel(jpos_pred, jpos_gt)) * 1000
@@ -41,17 +43,18 @@ def compute_metrics_lite(pred_pos_all, gt_pos_all, root_idx = 0, use_tqdm = True
         jpos_gt = jpos_gt - jpos_gt[:, [root_idx]]
 
         pa_mpjpe = p_mpjpe(jpos_pred, jpos_gt) * 1000
-        mpjpe = np.linalg.norm(jpos_pred - jpos_gt, axis=2)* 1000
-        
+        mpjpe = np.linalg.norm(jpos_pred - jpos_gt, axis=2) * 1000
+
         metrics["mpjpe_g"].append(mpjpe_g)
         metrics["mpjpe_l"].append(mpjpe)
         metrics["mpjpe_pa"].append(pa_mpjpe)
         metrics["accel_dist"].append(accel_dist)
         metrics["vel_dist"].append(vel_dist)
-    
+
     if concatenate:
-        metrics = {k:np.concatenate(v) for k, v in metrics.items()}
+        metrics = {k: np.concatenate(v) for k, v in metrics.items()}
     return metrics
+
 
 def p_mpjpe(predicted, target):
     """
@@ -93,6 +96,7 @@ def p_mpjpe(predicted, target):
 
     # Return MPJPE
     return np.linalg.norm(predicted_aligned - target, axis=len(target.shape) - 1)
+
 
 def compute_metrics(res, converter=None):
     res = copy.deepcopy(res)

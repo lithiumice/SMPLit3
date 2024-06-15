@@ -45,7 +45,9 @@ import numpy as np
 
 def warn_task_name():
     raise Exception(
-        "Unrecognized task!\nTask should be one of: [BallBalance, Cartpole, CartpoleYUp, Ant, Humanoid, Anymal, FrankaCabinet, Quadcopter, ShadowHand, ShadowHandLSTM, ShadowHandFFOpenAI, ShadowHandFFOpenAITest, ShadowHandOpenAI, ShadowHandOpenAITest, Ingenuity]")
+        "Unrecognized task!\nTask should be one of: [BallBalance, Cartpole, CartpoleYUp, Ant, Humanoid, Anymal, FrankaCabinet, Quadcopter, ShadowHand, ShadowHandLSTM, ShadowHandFFOpenAI, ShadowHandFFOpenAITest, ShadowHandOpenAI, ShadowHandOpenAITest, Ingenuity]"
+    )
+
 
 def parse_task(args, cfg, cfg_train, sim_params):
 
@@ -64,10 +66,16 @@ def parse_task(args, cfg, cfg_train, sim_params):
             physics_engine=args.physics_engine,
             device_type=args.device,
             device_id=device_id,
-            headless=args.headless)
+            headless=args.headless,
+        )
     except NameError as e:
         print(e)
         warn_task_name()
-    env = VecTaskPythonWrapper(task, rl_device, cfg_train.get("clip_observations", np.inf), cfg_train.get("clip_actions", 1.0))
+    env = VecTaskPythonWrapper(
+        task,
+        rl_device,
+        cfg_train.get("clip_observations", np.inf),
+        cfg_train.get("clip_actions", 1.0),
+    )
 
     return task, env

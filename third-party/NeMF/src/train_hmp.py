@@ -9,7 +9,9 @@ import pandas as pd
 import torch
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
-import sys;sys.path.append('/apdcephfs/private_wallyliang/PLANT/Thirdparty')
+import sys
+
+sys.path.append("/apdcephfs/private_wallyliang/PLANT/Thirdparty")
 
 from datasets.ReInterHand import ReInterHand
 from nemf_arguments import Arguments
@@ -42,7 +44,7 @@ def train():
                 model.set_input(data)
                 model.optimize_parameters()
 
-        if epoch%6==0:
+        if epoch % 6 == 0:
             model.eval()
             for data in valid_data_loader:
                 model.set_input(data)
@@ -52,10 +54,13 @@ def train():
             res = model.verbose()
 
             if args.verbose:
-                print(f'Epoch {epoch}/{epoch_end - 1}:')
+                print(f"Epoch {epoch}/{epoch_end - 1}:")
                 print(json.dumps(res, sort_keys=True, indent=4))
 
-            if loss_min is None or res['total_loss']['val'] < loss_min['total_loss']['val']:
+            if (
+                loss_min is None
+                or res["total_loss"]["val"] < loss_min["total_loss"]["val"]
+            ):
                 loss_min = res
                 model.save(optimal=True)
 
@@ -63,11 +68,13 @@ def train():
                 model.save()
 
     end_time = time.time()
-    print(f'Training finished in {time.strftime("%H:%M:%S", time.gmtime(end_time - start_time))}')
-    print('Final Loss:')
+    print(
+        f'Training finished in {time.strftime("%H:%M:%S", time.gmtime(end_time - start_time))}'
+    )
+    print("Final Loss:")
     print(json.dumps(loss_min, sort_keys=True, indent=4))
     df = pd.DataFrame.from_dict(loss_min)
-    df.to_csv(os.path.join(args.save_dir, f'{args.filename}.csv'), index=False)
+    df.to_csv(os.path.join(args.save_dir, f"{args.filename}.csv"), index=False)
 
 
 def test(steps):
@@ -85,20 +92,24 @@ def test(steps):
                 errors = model.report_errors()
                 if not statistics:
                     statistics = {
-                        'rotation_error': [errors['rotation'] * 180.0 / np.pi],
-                        'position_error': [errors['position'] * 100.0],
+                        "rotation_error": [errors["rotation"] * 180.0 / np.pi],
+                        "position_error": [errors["position"] * 100.0],
                     }
                 else:
-                    statistics['rotation_error'].append(errors['rotation'] * 180.0 / np.pi)
-                    statistics['position_error'].append(errors['position'] * 100.0)
+                    statistics["rotation_error"].append(
+                        errors["rotation"] * 180.0 / np.pi
+                    )
+                    statistics["position_error"].append(errors["position"] * 100.0)
 
         if step == 1.0:
             df = pd.DataFrame.from_dict(statistics)
-            df.to_csv(os.path.join(args.save_dir, f'{args.filename}_test.csv'), index=False)
+            df.to_csv(
+                os.path.join(args.save_dir, f"{args.filename}_test.csv"), index=False
+            )
 
 
-if __name__ == '__main__':
-    args = Arguments('./configs', filename=sys.argv[1])
+if __name__ == "__main__":
+    args = Arguments("./configs", filename=sys.argv[1])
     print(json.dumps(args.json, sort_keys=True, indent=4))
 
     torch.set_default_dtype(torch.float32)
@@ -112,15 +123,34 @@ if __name__ == '__main__':
         ngpu = torch.cuda.device_count()
         if ngpu == 1:
             args.multi_gpu = False
-    print(f'Number of GPUs: {ngpu}')
+    print(f"Number of GPUs: {ngpu}")
 
     # dataset definition
-    train_dataset = ReInterHand(dataset_dir=os.path.join(args.dataset_dir, 'train'))
-    train_data_loader = DataLoader(train_dataset, batch_size=ngpu * args.batch_size, num_workers=args.num_workers, shuffle=True, pin_memory=True, drop_last=True)
-    valid_dataset = ReInterHand(dataset_dir=os.path.join(args.dataset_dir, 'train'))
-    valid_data_loader = DataLoader(valid_dataset, batch_size=ngpu * args.batch_size, num_workers=args.num_workers, shuffle=False, pin_memory=True)
-    test_dataset = ReInterHand(dataset_dir=os.path.join(args.dataset_dir, 'train'))
-    test_data_loader = DataLoader(test_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False, pin_memory=True)
+    train_dataset = ReInterHand(dataset_dir=os.path.join(args.dataset_dir, "train"))
+    train_data_loader = DataLoader(
+        train_dataset,
+        batch_size=ngpu * args.batch_size,
+        num_workers=args.num_workers,
+        shuffle=True,
+        pin_memory=True,
+        drop_last=True,
+    )
+    valid_dataset = ReInterHand(dataset_dir=os.path.join(args.dataset_dir, "train"))
+    valid_data_loader = DataLoader(
+        valid_dataset,
+        batch_size=ngpu * args.batch_size,
+        num_workers=args.num_workers,
+        shuffle=False,
+        pin_memory=True,
+    )
+    test_dataset = ReInterHand(dataset_dir=os.path.join(args.dataset_dir, "train"))
+    test_data_loader = DataLoader(
+        test_dataset,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+        shuffle=False,
+        pin_memory=True,
+    )
 
     if args.is_train:
         train()

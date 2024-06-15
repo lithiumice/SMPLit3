@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import time
 import subprocess
@@ -9,19 +8,20 @@ import sys
 
 def run_ffmpeg_subprocess(ffmpeg_cmd):
     if isinstance(ffmpeg_cmd, list):
-        ffmpeg_cmd=' '.join(ffmpeg_cmd)
+        ffmpeg_cmd = " ".join(ffmpeg_cmd)
     print(ffmpeg_cmd)
     ret = subprocess.run(ffmpeg_cmd, shell=True)
     return ret
-            
-vids_list = list((Path('/apdcephfs/private_wallyliang/dance_1')).glob("*.mp4"))
+
+
+vids_list = list((Path("/apdcephfs/private_wallyliang/dance_1")).glob("*.mp4"))
 # vids_list = list((Path('/apdcephfs/private_wallyliang/videos')).glob("*.mp4"))
 
 
 def testbench():
-    os.chdir('/apdcephfs/private_wallyliang/SMPLit')
-    print(f'{vids_list=}')
-    
+    os.chdir("/apdcephfs/private_wallyliang/SMPLit")
+    print(f"{vids_list=}")
+
     for vid_path in vids_list:
         vid_path = str(vid_path)
 
@@ -40,7 +40,7 @@ def testbench():
         # """
 
         # 1. WHAM+ACR
-        seq_out_dir = Path('output+wham_acr_difftraj', Path(vid_path).stem)
+        seq_out_dir = Path("output+wham_acr_difftraj", Path(vid_path).stem)
         cmds = f"""
         python infer.py \
         --save_pkl \
@@ -54,7 +54,6 @@ def testbench():
         --only_one_person \
         --debug 
         """
-
 
         # # 2.0. vis smpler-x
         # seq_out_dir = Path('output+smplerx_opt', Path(vid_path).stem)
@@ -70,9 +69,8 @@ def testbench():
         # --estimate_local_only \
         # --only_one_person \
         # --inp_body_pose /apdcephfs/private_wallyliang/MotionCaption/output/{Path(vid_path).stem}.npz \
-        # --debug 
+        # --debug
         # """
-
 
         # # 2. smpler-x+opt+DiffTraj+vis
         # seq_out_dir = Path('output+smplerx_opt', Path(vid_path).stem)
@@ -90,7 +88,7 @@ def testbench():
         # --estimate_local_only \
         # --only_one_person \
         # --inp_body_pose /apdcephfs/private_wallyliang/MotionCaption/output/{Path(vid_path).stem}.npz \
-        # --debug 
+        # --debug
         # """
 
         # # 3. wham+acr+opt
@@ -109,12 +107,11 @@ def testbench():
         # --vitpose_model ViTPose+-G \
         # --estimate_local_only \
         # --only_one_person \
-        # --debug 
+        # --debug
         # """
 
-
         run_ffmpeg_subprocess(cmds)
-    
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     testbench()

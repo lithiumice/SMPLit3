@@ -8,7 +8,7 @@ class PositionalEncoding(nn.Module):
     def __init__(self, n_functions):
         super(PositionalEncoding, self).__init__()
 
-        self.register_buffer('frequencies', 2.0 ** torch.arange(n_functions))
+        self.register_buffer("frequencies", 2.0 ** torch.arange(n_functions))
 
     def forward(self, x):
         """
@@ -28,7 +28,7 @@ class PositionalEncoding(nn.Module):
 
 
 class Sine(nn.Module):
-    def __init__(self, w0=1.):
+    def __init__(self, w0=1.0):
         super(Sine, self).__init__()
 
         self.w0 = w0
@@ -38,7 +38,16 @@ class Sine(nn.Module):
 
 
 class SirenBlock(nn.Module):
-    def __init__(self, in_features, out_features, w0=30, c=6, is_first=False, use_bias=True, activation=None):
+    def __init__(
+        self,
+        in_features,
+        out_features,
+        w0=30,
+        c=6,
+        is_first=False,
+        use_bias=True,
+        activation=None,
+    ):
         super(SirenBlock, self).__init__()
 
         self.in_features = in_features
@@ -72,7 +81,9 @@ class FCBlock(nn.Module):
         super(FCBlock, self).__init__()
 
         self.fc = nn.Linear(in_features, out_features)
-        self.residual = (in_features == out_features)  # when the input and output have the same dimensions, build a residual block
+        self.residual = (
+            in_features == out_features
+        )  # when the input and output have the same dimensions, build a residual block
         self.norm_layer = nn.LayerNorm(out_features) if norm_layer else None
         self.activation = nn.ReLU(inplace=True) if activation is None else activation
 
@@ -106,24 +117,94 @@ class NeuralMotionField(nn.Module):
 
         hidden_neuron = args.hidden_neuron
         in_features = 1 + args.local_z if args.siren else embedding_dim + args.local_z
-        local_in_features = hidden_neuron + in_features if args.skip_connection else hidden_neuron
-        global_in_features = local_in_features + args.global_z if args.skip_connection else hidden_neuron
+        local_in_features = (
+            hidden_neuron + in_features if args.skip_connection else hidden_neuron
+        )
+        global_in_features = (
+            local_in_features + args.global_z if args.skip_connection else hidden_neuron
+        )
 
         layers = [
-            SirenBlock(in_features, hidden_neuron, is_first=True) if args.siren else FCBlock(in_features, hidden_neuron, norm_layer=args.norm_layer),
-            SirenBlock(local_in_features, hidden_neuron) if args.siren else FCBlock(local_in_features, hidden_neuron, norm_layer=args.norm_layer),
-            SirenBlock(local_in_features, hidden_neuron) if args.siren else FCBlock(local_in_features, hidden_neuron, norm_layer=args.norm_layer),
-            SirenBlock(local_in_features, hidden_neuron) if args.siren else FCBlock(local_in_features, hidden_neuron, norm_layer=args.norm_layer),
-            SirenBlock(local_in_features, hidden_neuron) if args.siren else FCBlock(local_in_features, hidden_neuron, norm_layer=args.norm_layer),
-            SirenBlock(local_in_features, hidden_neuron) if args.siren else FCBlock(local_in_features, hidden_neuron, norm_layer=args.norm_layer),
-            SirenBlock(local_in_features, hidden_neuron) if args.siren else FCBlock(local_in_features, hidden_neuron, norm_layer=args.norm_layer),
-            SirenBlock(local_in_features, hidden_neuron) if args.siren else FCBlock(local_in_features, hidden_neuron, norm_layer=args.norm_layer),
-            SirenBlock(global_in_features, hidden_neuron) if args.siren else FCBlock(global_in_features, hidden_neuron, norm_layer=args.norm_layer),
-            SirenBlock(global_in_features, hidden_neuron) if args.siren else FCBlock(global_in_features, hidden_neuron, norm_layer=args.norm_layer),
-            SirenBlock(global_in_features, hidden_neuron) if args.siren else FCBlock(global_in_features, hidden_neuron, norm_layer=args.norm_layer)
+            (
+                SirenBlock(in_features, hidden_neuron, is_first=True)
+                if args.siren
+                else FCBlock(in_features, hidden_neuron, norm_layer=args.norm_layer)
+            ),
+            (
+                SirenBlock(local_in_features, hidden_neuron)
+                if args.siren
+                else FCBlock(
+                    local_in_features, hidden_neuron, norm_layer=args.norm_layer
+                )
+            ),
+            (
+                SirenBlock(local_in_features, hidden_neuron)
+                if args.siren
+                else FCBlock(
+                    local_in_features, hidden_neuron, norm_layer=args.norm_layer
+                )
+            ),
+            (
+                SirenBlock(local_in_features, hidden_neuron)
+                if args.siren
+                else FCBlock(
+                    local_in_features, hidden_neuron, norm_layer=args.norm_layer
+                )
+            ),
+            (
+                SirenBlock(local_in_features, hidden_neuron)
+                if args.siren
+                else FCBlock(
+                    local_in_features, hidden_neuron, norm_layer=args.norm_layer
+                )
+            ),
+            (
+                SirenBlock(local_in_features, hidden_neuron)
+                if args.siren
+                else FCBlock(
+                    local_in_features, hidden_neuron, norm_layer=args.norm_layer
+                )
+            ),
+            (
+                SirenBlock(local_in_features, hidden_neuron)
+                if args.siren
+                else FCBlock(
+                    local_in_features, hidden_neuron, norm_layer=args.norm_layer
+                )
+            ),
+            (
+                SirenBlock(local_in_features, hidden_neuron)
+                if args.siren
+                else FCBlock(
+                    local_in_features, hidden_neuron, norm_layer=args.norm_layer
+                )
+            ),
+            (
+                SirenBlock(global_in_features, hidden_neuron)
+                if args.siren
+                else FCBlock(
+                    global_in_features, hidden_neuron, norm_layer=args.norm_layer
+                )
+            ),
+            (
+                SirenBlock(global_in_features, hidden_neuron)
+                if args.siren
+                else FCBlock(
+                    global_in_features, hidden_neuron, norm_layer=args.norm_layer
+                )
+            ),
+            (
+                SirenBlock(global_in_features, hidden_neuron)
+                if args.siren
+                else FCBlock(
+                    global_in_features, hidden_neuron, norm_layer=args.norm_layer
+                )
+            ),
         ]
         self.mlp = nn.ModuleList(layers)
-        self.skip_layers = [] if not args.skip_connection else list(range(1, len(self.mlp)))
+        self.skip_layers = (
+            [] if not args.skip_connection else list(range(1, len(self.mlp)))
+        )
         self.local_layers = list(range(8))
         self.local_linear = nn.Sequential(nn.Linear(hidden_neuron, args.local_output))
         self.global_layers = list(range(8, len(self.mlp)))

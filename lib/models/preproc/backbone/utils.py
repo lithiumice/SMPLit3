@@ -20,8 +20,8 @@ def get_transform(center, scale, res, rot=0):
     t = np.zeros((3, 3))
     t[0, 0] = float(res[1]) / w
     t[1, 1] = float(res[0]) / h
-    t[0, 2] = res[1] * (-float(center[0]) / w + .5)
-    t[1, 2] = res[0] * (-float(center[1]) / h + .5)
+    t[0, 2] = res[1] * (-float(center[0]) / w + 0.5)
+    t[1, 2] = res[0] * (-float(center[1]) / h + 0.5)
     t[2, 2] = 1
     if not rot == 0:
         rot = -rot  # To match direction of rotation from cropping
@@ -46,7 +46,7 @@ def transform(pt, center, scale, res, invert=0, rot=0):
     t = get_transform(center, scale, res, rot=rot)
     if invert:
         t = np.linalg.inv(t)
-    new_pt = np.array([pt[0] - 1, pt[1] - 1, 1.]).T
+    new_pt = np.array([pt[0] - 1, pt[1] - 1, 1.0]).T
     new_pt = np.dot(t, new_pt)
     return np.array([round(new_pt[0]), round(new_pt[1])], dtype=int) + 1
 
@@ -73,7 +73,9 @@ def crop(img, center, scale, res):
     old_x = max(0, ul[0]), min(len(img[0]), br[0])
     old_y = max(0, ul[1]), min(len(img), br[1])
     try:
-        new_img[new_y[0]:new_y[1], new_x[0]:new_x[1]] = img[old_y[0]:old_y[1], old_x[0]:old_x[1]]
+        new_img[new_y[0] : new_y[1], new_x[0] : new_x[1]] = img[
+            old_y[0] : old_y[1], old_x[0] : old_x[1]
+        ]
     except Exception as e:
         print(e)
 
@@ -82,31 +84,43 @@ def crop(img, center, scale, res):
     return new_img, ul, br
 
 
-
-def process_image(orig_img_rgb, center, scale, crop_height=256, crop_width=192, blur=False, do_crop=True):
+def process_image(
+    orig_img_rgb,
+    center,
+    scale,
+    crop_height=256,
+    crop_width=192,
+    blur=False,
+    do_crop=True,
+):
     """
     Read image, do preprocessing and possibly crop it according to the bounding box.
     If there are bounding box annotations, use them to crop the image.
     If no bounding box is specified but openpose detections are available, use them to get the bounding box.
     """
-    
+
     if blur:
         # Blur image to avoid aliasing artifacts
-        downsampling_factor = ((scale * 200 * 1.0) / crop_height)
+        downsampling_factor = (scale * 200 * 1.0) / crop_height
         downsampling_factor = downsampling_factor / 2.0
         if downsampling_factor > 1.1:
-            orig_img_rgb  = gaussian(orig_img_rgb, sigma=(downsampling_factor-1)/2, channel_axis=2, preserve_range=True)
-    
+            orig_img_rgb = gaussian(
+                orig_img_rgb,
+                sigma=(downsampling_factor - 1) / 2,
+                channel_axis=2,
+                preserve_range=True,
+            )
+
     IMG_NORM_MEAN = [0.485, 0.456, 0.406]
     IMG_NORM_STD = [0.229, 0.224, 0.225]
-    
+
     if do_crop:
         img, ul, br = crop(orig_img_rgb, center, scale, (crop_height, crop_width))
-    else: 
+    else:
         img = orig_img_rgb.copy()
     crop_img = img.copy()
-    
-    img = img / 255.
+
+    img = img / 255.0
     mean = np.array(IMG_NORM_MEAN, dtype=np.float32)
     std = np.array(IMG_NORM_STD, dtype=np.float32)
     norm_img = (img - mean) / std

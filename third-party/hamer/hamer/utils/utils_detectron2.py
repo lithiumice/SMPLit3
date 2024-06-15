@@ -49,19 +49,24 @@ class DefaultPredictor_Lazy:
             checkpointer.load(cfg.MODEL.WEIGHTS)
 
             self.aug = T.ResizeShortestEdge(
-                [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST], cfg.INPUT.MAX_SIZE_TEST
+                [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST],
+                cfg.INPUT.MAX_SIZE_TEST,
             )
 
             self.input_format = cfg.INPUT.FORMAT
         else:  # new LazyConfig
             self.cfg = cfg
             self.model = instantiate(cfg.model)
-            test_dataset = OmegaConf.select(cfg, "dataloader.test.dataset.names", default=None)
+            test_dataset = OmegaConf.select(
+                cfg, "dataloader.test.dataset.names", default=None
+            )
             if isinstance(test_dataset, (list, tuple)):
                 test_dataset = test_dataset[0]
 
             checkpointer = DetectionCheckpointer(self.model)
-            checkpointer.load(OmegaConf.select(cfg, "train.init_checkpoint", default=""))
+            checkpointer.load(
+                OmegaConf.select(cfg, "train.init_checkpoint", default="")
+            )
 
             mapper = instantiate(cfg.dataloader.test.mapper)
             self.aug = mapper.augmentations

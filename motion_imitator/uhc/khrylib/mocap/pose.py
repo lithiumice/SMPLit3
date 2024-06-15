@@ -1,7 +1,11 @@
 import numpy as np
 import math
 from bvh import Bvh
-from uhc.khrylib.utils.transformation import quaternion_slerp, quaternion_from_euler, euler_from_quaternion
+from uhc.khrylib.utils.transformation import (
+    quaternion_slerp,
+    quaternion_from_euler,
+    euler_from_quaternion,
+)
 
 
 def load_amc_file(fname, scale):
@@ -23,15 +27,19 @@ def load_amc_file(fname, scale):
             fr += 1
         elif cur_pos is not None:
             start_ind = len(cur_pos)
-            if cmd == 'root':
-                cur_pos += [float(word)*scale for word in line_words[1:4]]
+            if cmd == "root":
+                cur_pos += [float(word) * scale for word in line_words[1:4]]
                 cur_pos += [math.radians(float(word)) for word in line_words[4:]]
-            elif cmd == 'lfoot' or cmd == 'rfoot':
-                cur_pos += reversed([math.radians(float(word)) for word in line_words[1:]])
+            elif cmd == "lfoot" or cmd == "rfoot":
+                cur_pos += reversed(
+                    [math.radians(float(word)) for word in line_words[1:]]
+                )
                 if len(cur_pos) < 3:
                     cur_pos.insert(-1, 0.0)
             else:
-                cur_pos += reversed([math.radians(float(word)) for word in line_words[1:]])
+                cur_pos += reversed(
+                    [math.radians(float(word)) for word in line_words[1:]]
+                )
             if fr == 2:
                 end_ind = len(cur_pos)
                 bone_addr[cmd] = (start_ind, end_ind)
@@ -79,18 +87,16 @@ def lin_interp(pose1, pose2, t):
 
 def interpolated_traj(poses, sample_t=0.030, mocap_fr=120, interp_func=lin_interp):
     N = poses.shape[0]
-    T = float(N-1)/mocap_fr
-    num = int(math.floor(T/sample_t))
-    sampling_times = np.arange(num+1)*sample_t*mocap_fr
+    T = float(N - 1) / mocap_fr
+    num = int(math.floor(T / sample_t))
+    sampling_times = np.arange(num + 1) * sample_t * mocap_fr
 
     poses_samp = []
     for t in sampling_times:
         start = int(math.floor(t))
         end = min(int(math.ceil(t)), poses.shape[0] - 1)
-        pose_interp = interp_func(poses[start, :], poses[end, :], t-math.floor(t))
+        pose_interp = interp_func(poses[start, :], poses[end, :], t - math.floor(t))
         poses_samp.append(pose_interp)
     poses_samp = np.vstack(poses_samp)
 
     return poses_samp
-
-

@@ -48,12 +48,16 @@ zero_pose = SkeletonState.zero_pose(skeleton)
 # adjust pose into a T Pose
 local_rotation = zero_pose.local_rotation
 local_rotation[skeleton.index("left_upper_arm")] = quat_mul(
-    quat_from_angle_axis(angle=torch.tensor([90.0]), axis=torch.tensor([1.0, 0.0, 0.0]), degree=True), 
-    local_rotation[skeleton.index("left_upper_arm")]
+    quat_from_angle_axis(
+        angle=torch.tensor([90.0]), axis=torch.tensor([1.0, 0.0, 0.0]), degree=True
+    ),
+    local_rotation[skeleton.index("left_upper_arm")],
 )
 local_rotation[skeleton.index("right_upper_arm")] = quat_mul(
-    quat_from_angle_axis(angle=torch.tensor([-90.0]), axis=torch.tensor([1.0, 0.0, 0.0]), degree=True), 
-    local_rotation[skeleton.index("right_upper_arm")]
+    quat_from_angle_axis(
+        angle=torch.tensor([-90.0]), axis=torch.tensor([1.0, 0.0, 0.0]), degree=True
+    ),
+    local_rotation[skeleton.index("right_upper_arm")],
 )
 translation = zero_pose.root_translation
 translation += torch.tensor([0, 0, 0.9])

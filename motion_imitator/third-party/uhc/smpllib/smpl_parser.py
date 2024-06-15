@@ -335,7 +335,7 @@ class SMPL_Parser(_SMPL):
 
         self.zero_pose = torch.zeros(1, 72).float()
 
-        self.register_buffer('children_map', self._parents_to_children(self.parents))
+        self.register_buffer("children_map", self._parents_to_children(self.parents))
 
     def _parents_to_children(self, parents):
         self.SPINE3_IDX = 9
@@ -346,14 +346,16 @@ class SMPL_Parser(_SMPL):
 
         children[self.SPINE3_IDX] = -3
         children[0] = 3
-        children[self.SPINE3_IDX] = SMPL_BONE_ORDER_NAMES.index('Neck')
+        children[self.SPINE3_IDX] = SMPL_BONE_ORDER_NAMES.index("Neck")
         return children
 
     def forward(self, *args, **kwargs):
         smpl_output = super(SMPL_Parser, self).forward(*args, **kwargs)
         return smpl_output
 
-    def get_joints_verts(self, pose, th_betas=None, th_trans=None, root_trans=None, root_scale=None):
+    def get_joints_verts(
+        self, pose, th_betas=None, th_trans=None, root_trans=None, root_scale=None
+    ):
         """
         Pose should be batch_size x 72
         """
@@ -368,7 +370,7 @@ class SMPL_Parser(_SMPL):
                 th_betas = th_betas[:, :10]
 
         batch_size = pose.shape[0]
-        
+
         smpl_output = self.forward(
             betas=th_betas,
             transl=th_trans,
@@ -382,8 +384,12 @@ class SMPL_Parser(_SMPL):
             if root_scale is None:
                 root_scale = torch.ones_like(root_trans[:, 0])
             cur_root_trans = joints[:, [0], :]
-            vertices[:] = (vertices - cur_root_trans) * root_scale[:, None, None] + root_trans[:, None, :]
-            joints[:] = (joints - cur_root_trans) * root_scale[:, None, None] + root_trans[:, None, :]
+            vertices[:] = (vertices - cur_root_trans) * root_scale[
+                :, None, None
+            ] + root_trans[:, None, :]
+            joints[:] = (joints - cur_root_trans) * root_scale[
+                :, None, None
+            ] + root_trans[:, None, :]
         return vertices, joints
 
     def get_offsets(self, betas=torch.zeros(1, 10).float()):
@@ -410,7 +416,9 @@ class SMPL_Parser(_SMPL):
             channels = ["z", "y", "x"]
             return offset_smpl_dict, parents_dict, channels, self.joint_range
 
-    def get_mesh_offsets(self, zero_pose=None, betas=torch.zeros(1, 10), scale=None, flatfoot=False):
+    def get_mesh_offsets(
+        self, zero_pose=None, betas=torch.zeros(1, 10), scale=None, flatfoot=False
+    ):
         with torch.no_grad():
             joint_names = self.joint_names
             if zero_pose is None:
@@ -460,7 +468,9 @@ class SMPL_Parser(_SMPL):
     def get_mesh_offsets_batch(self, betas=torch.zeros(1, 10), flatfoot=False):
         with torch.no_grad():
             joint_names = self.joint_names
-            verts, Jtr = self.get_joints_verts(self.zero_pose.repeat(betas.shape[0], 1), th_betas=betas)
+            verts, Jtr = self.get_joints_verts(
+                self.zero_pose.repeat(betas.shape[0], 1), th_betas=betas
+            )
             verts_np = verts.detach().cpu().numpy()
             verts = verts_np[0]
 
@@ -472,7 +482,9 @@ class SMPL_Parser(_SMPL):
 
             joint_pos = Jtr
             joint_offsets = {
-                joint_names[c]: (joint_pos[:, c] - joint_pos[:, p]) if c > 0 else joint_pos[:, c]
+                joint_names[c]: (
+                    (joint_pos[:, c] - joint_pos[:, p]) if c > 0 else joint_pos[:, c]
+                )
                 for c, p in enumerate(smpl_joint_parents)
             }
             joint_parents = {
@@ -494,6 +506,7 @@ class SMPL_Parser(_SMPL):
                 self.contype,
                 self.conaffinity,
             )
+
 
 class SMPLH_Parser(_SMPLH):
     def __init__(self, *args, **kwargs):
@@ -570,7 +583,7 @@ class SMPLH_Parser(_SMPLH):
             channels = ["z", "y", "x"]
             return offset_smpl_dict, parents_dict, channels
 
-    def get_mesh_offsets(self, betas=torch.zeros(1, 16), flatfoot = False):
+    def get_mesh_offsets(self, betas=torch.zeros(1, 16), flatfoot=False):
         with torch.no_grad():
             joint_names = self.joint_names
             verts, Jtr = self.get_joints_verts(self.zero_pose, th_betas=betas)
@@ -648,7 +661,7 @@ class SMPLX_Parser(_SMPLX):
         pose = pose.float()
         if th_betas is not None:
             th_betas = th_betas.float()
-        
+
         batch_size = pose.shape[0]
         smpl_output = self.forward(
             body_pose=pose[:, 3:66],
@@ -698,7 +711,6 @@ class SMPLX_Parser(_SMPLX):
             #             joint_names = self.joint_names
             joint_names = SMPLX_BONE_ORDER_NAMES
             verts, Jtr = self.get_joints_verts(self.zero_pose)
-            
 
             smpl_joint_parents = self.parents.cpu().numpy()
             joint_pos = Jtr[0].numpy()
@@ -735,6 +747,7 @@ class SMPLX_Parser(_SMPLX):
                 self.contype,
                 self.conaffinity,
             )
+
 
 if __name__ == "__main__":
     smpl_p = SMPLH_Parser("/hdd/zen/dev/copycat/Copycat/data/smpl", gender="neutral")

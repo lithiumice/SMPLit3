@@ -3,6 +3,7 @@ import os
 import sys
 import pdb
 import os.path as osp
+
 sys.path.append(os.getcwd())
 
 import numpy as np
@@ -65,9 +66,13 @@ def flip_smpl(pose, trans=None):
     Pose input batch * 72
     """
     curr_spose = sRot.from_rotvec(pose.reshape(-1, 3))
-    curr_spose_euler = curr_spose.as_euler("ZXY", degrees=False).reshape(pose.shape[0], 24, 3)
+    curr_spose_euler = curr_spose.as_euler("ZXY", degrees=False).reshape(
+        pose.shape[0], 24, 3
+    )
     curr_spose_euler = left_to_rigth_euler(curr_spose_euler)
-    curr_spose_rot = sRot.from_euler("ZXY", curr_spose_euler.reshape(-1, 3), degrees=False)
+    curr_spose_rot = sRot.from_euler(
+        "ZXY", curr_spose_euler.reshape(-1, 3), degrees=False
+    )
     curr_spose_aa = curr_spose_rot.as_rotvec().reshape(pose.shape[0], 24, 3)
     if trans != None:
         pass
@@ -101,8 +106,8 @@ def sample_seq_length(seq, tran, seq_length=150):
         if num_possible_seqs >= 2:
             start_points.append(max_seq - seq_length - np.random.randint(0, 10))
 
-        seqs = [seq[i:(i + seq_length)] for i in start_points]
-        trans = [tran[i:(i + seq_length)] for i in start_points]
+        seqs = [seq[i : (i + seq_length)] for i in start_points]
+        trans = [tran[i : (i + seq_length)] for i in start_points]
     else:
         seqs = [seq]
         trans = [tran]
@@ -117,7 +122,6 @@ def get_random_shape(batch_size):
     return shape_params
 
 
-
 def count_consec(lst):
     consec = [1]
     for x, y in zip(lst, lst[1:]):
@@ -126,7 +130,6 @@ def count_consec(lst):
         else:
             consec.append(1)
     return consec
-
 
 
 def fix_height_smpl_vanilla(pose_aa, th_trans, th_betas, gender, seq_name):
@@ -146,7 +149,9 @@ def fix_height_smpl_vanilla(pose_aa, th_trans, th_betas, gender, seq_name):
         raise Exception("Gender Not Supported!!")
 
     batch_size = pose_aa.shape[0]
-    verts, jts = smpl_parser.get_joints_verts(pose_aa[0:1], th_betas.repeat((1, 1)), th_trans=th_trans[0:1])
+    verts, jts = smpl_parser.get_joints_verts(
+        pose_aa[0:1], th_betas.repeat((1, 1)), th_trans=th_trans[0:1]
+    )
 
     # vertices = verts[0].numpy()
     gp = torch.min(verts[:, :, 2])
@@ -156,11 +161,12 @@ def fix_height_smpl_vanilla(pose_aa, th_trans, th_betas, gender, seq_name):
 
     return th_trans
 
+
 def process_qpos_list(qpos_list):
     amass_res = {}
     removed_k = []
     pbar = qpos_list
-    for (k, v) in tqdm(pbar):
+    for k, v in tqdm(pbar):
         # print("=" * 20)
         k = "0-" + k
         seq_name = k
@@ -174,8 +180,12 @@ def process_qpos_list(qpos_list):
         bound = amass_pose.shape[0]
         if k in amass_occlusion:
             issue = amass_occlusion[k]["issue"]
-            if (issue == "sitting" or issue == "airborne") and "idxes" in amass_occlusion[k]:
-                bound = amass_occlusion[k]["idxes"][0]  # This bounded is calucaled assuming 30 FPS.....
+            if (
+                issue == "sitting" or issue == "airborne"
+            ) and "idxes" in amass_occlusion[k]:
+                bound = amass_occlusion[k]["idxes"][
+                    0
+                ]  # This bounded is calucaled assuming 30 FPS.....
                 if bound < 10:
                     print("bound too small", k, bound)
                     continue
@@ -189,13 +199,14 @@ def process_qpos_list(qpos_list):
         with torch.no_grad():
             amass_pose = amass_pose[:bound]
             batch_size = amass_pose.shape[0]
-            amass_pose = np.concatenate([amass_pose[:, :66], np.zeros((batch_size, 6))], axis=1) # We use SMPL and not SMPLH
-            
+            amass_pose = np.concatenate(
+                [amass_pose[:, :66], np.zeros((batch_size, 6))], axis=1
+            )  # We use SMPL and not SMPLH
+
             pose_aa = torch.tensor(amass_pose)  # After sampling the bound
-            
+
             amass_trans = torch.tensor(amass_trans[:bound])  # After sampling the bound
             betas = torch.from_numpy(betas)
-            
 
             amass_trans = fix_height_smpl_vanilla(
                 pose_aa=pose_aa,
@@ -205,7 +216,9 @@ def process_qpos_list(qpos_list):
                 seq_name=k,
             )
 
-            pose_seq_6d = convert_aa_to_orth6d(torch.tensor(pose_aa)).reshape(batch_size, -1, 6)
+            pose_seq_6d = convert_aa_to_orth6d(torch.tensor(pose_aa)).reshape(
+                batch_size, -1, 6
+            )
 
             amass_res[seq_name] = {
                 "pose_aa": pose_aa.numpy(),
@@ -224,9 +237,25 @@ def process_qpos_list(qpos_list):
 
 
 amass_splits = {
-    'vald': ['HumanEva', 'MPI_HDM05', 'SFU', 'MPI_mosh'],
-    'test': ['Transitions_mocap', 'SSM_synced'],
-    'train': ['CMU', 'MPI_Limits', 'TotalCapture', 'Eyes_Japan_Dataset', 'KIT', 'BML', 'EKUT', 'TCD_handMocap', "BMLhandball", "DanceDB", "ACCAD", "BMLmovi", "BioMotionLab", "Eyes", "DFaust"]  # Adding ACCAD
+    "vald": ["HumanEva", "MPI_HDM05", "SFU", "MPI_mosh"],
+    "test": ["Transitions_mocap", "SSM_synced"],
+    "train": [
+        "CMU",
+        "MPI_Limits",
+        "TotalCapture",
+        "Eyes_Japan_Dataset",
+        "KIT",
+        "BML",
+        "EKUT",
+        "TCD_handMocap",
+        "BMLhandball",
+        "DanceDB",
+        "ACCAD",
+        "BMLmovi",
+        "BioMotionLab",
+        "Eyes",
+        "DFaust",
+    ],  # Adding ACCAD
 }
 
 amass_split_dict = {}
@@ -254,16 +283,20 @@ if __name__ == "__main__":
     amass_db = joblib.load(db_dataset)
     amass_occlusion = joblib.load("sample_data/amass_copycat_occlusion_v3.pkl")
 
-
     qpos_list = list(amass_db.items())
     np.random.seed(0)
     np.random.shuffle(qpos_list)
-    smpl_parser_n = SMPL_Parser(model_path="data/smpl", gender="neutral", use_pca=False, create_transl=False)
-    smpl_parser_m = SMPL_Parser(model_path="data/smpl", gender="male", use_pca=False, create_transl=False)
-    smpl_parser_f = SMPL_Parser(model_path="data/smpl", gender="female", use_pca=False, create_transl=False)
+    smpl_parser_n = SMPL_Parser(
+        model_path="data/smpl", gender="neutral", use_pca=False, create_transl=False
+    )
+    smpl_parser_m = SMPL_Parser(
+        model_path="data/smpl", gender="male", use_pca=False, create_transl=False
+    )
+    smpl_parser_f = SMPL_Parser(
+        model_path="data/smpl", gender="female", use_pca=False, create_transl=False
+    )
 
     amass_seq_data = process_qpos_list(qpos_list)
-     
 
     train_data = {}
     test_data = {}

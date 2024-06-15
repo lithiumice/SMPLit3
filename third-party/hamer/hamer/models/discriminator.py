@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class Discriminator(nn.Module):
 
     def __init__(self):
@@ -38,7 +39,7 @@ class Discriminator(nn.Module):
         nn.init.zeros_(self.betas_out.bias)
 
         # poses_joint
-        self.D_alljoints_fc1 = nn.Linear(32*self.num_joints, 1024)
+        self.D_alljoints_fc1 = nn.Linear(32 * self.num_joints, 1024)
         nn.init.xavier_uniform_(self.D_alljoints_fc1.weight)
         nn.init.zeros_(self.D_alljoints_fc1.bias)
         self.D_alljoints_fc2 = nn.Linear(1024, 1024)
@@ -47,7 +48,6 @@ class Discriminator(nn.Module):
         self.D_alljoints_out = nn.Linear(1024, 1)
         nn.init.xavier_uniform_(self.D_alljoints_out.weight)
         nn.init.zeros_(self.D_alljoints_out.bias)
-
 
     def forward(self, poses: torch.Tensor, betas: torch.Tensor) -> torch.Tensor:
         """
@@ -58,9 +58,9 @@ class Discriminator(nn.Module):
         Returns:
             torch.Tensor: Discriminator output with shape (B, 25)
         """
-        #bn = poses.shape[0]
+        # bn = poses.shape[0]
         # poses B x 207
-        #poses = poses.reshape(bn, -1)
+        # poses = poses.reshape(bn, -1)
         # poses B x num_joints x 1 x 9
         poses = poses.reshape(-1, self.num_joints, 1, 9)
         bn = poses.shape[0]
@@ -87,7 +87,7 @@ class Discriminator(nn.Module):
         betas_out = self.betas_out(betas)
 
         # poses_joint
-        poses = poses.reshape(bn,-1)
+        poses = poses.reshape(bn, -1)
         poses_all = self.D_alljoints_fc1(poses)
         poses_all = self.relu(poses_all)
         poses_all = self.D_alljoints_fc2(poses_all)

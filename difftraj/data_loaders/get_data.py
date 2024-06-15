@@ -58,6 +58,7 @@ def collate(batch):
 
     return motion, cond
 
+
 def diffgen_collate(batch):
     adapted_batch = []
     for b in batch:
@@ -84,9 +85,10 @@ def diffgen_collate(batch):
 
 def difftraj_collate(batch):
     adapted_batch = []
+
     def cvt(ds):
         return torch.tensor(ds.T).float().unsqueeze(1)  # [seqlen, J] -> [J, 1, seqlen]
-    
+
     for b in batch:
         # this is defined in difftraj/data_loaders/humanml/data/dataset.py 's dataset return
         style_code, condition, target, motoin_info_all = b
@@ -143,7 +145,6 @@ def diffpose_collate(batch):
             }
         )
     return collate(adapted_batch)
-
 
 
 def get_dataset_loader(

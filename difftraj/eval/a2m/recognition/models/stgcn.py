@@ -26,46 +26,54 @@ class STGCN(nn.Module):
             :math:`M_{in}` is the number of instance in a frame.
     """
 
-    def __init__(self, in_channels, num_class, graph_args,
-                 edge_importance_weighting, device, **kwargs):
+    def __init__(
+        self,
+        in_channels,
+        num_class,
+        graph_args,
+        edge_importance_weighting,
+        device,
+        **kwargs
+    ):
         super().__init__()
 
         self.device = device
         self.num_class = num_class
-        
+
         self.losses = ["accuracy", "cross_entropy", "mixed"]
-        self.criterion = torch.nn.CrossEntropyLoss(reduction='mean')
+        self.criterion = torch.nn.CrossEntropyLoss(reduction="mean")
 
         # load graph
         self.graph = Graph(**graph_args)
         A = torch.tensor(self.graph.A, dtype=torch.float32, requires_grad=False)
-        self.register_buffer('A', A)
+        self.register_buffer("A", A)
 
         # build networks
         spatial_kernel_size = A.size(0)
         temporal_kernel_size = 9
         kernel_size = (temporal_kernel_size, spatial_kernel_size)
         self.data_bn = nn.BatchNorm1d(in_channels * A.size(1))
-        kwargs0 = {k: v for k, v in kwargs.items() if k != 'dropout'}
-        self.st_gcn_networks = nn.ModuleList((
-            st_gcn(in_channels, 64, kernel_size, 1, residual=False, **kwargs0),
-            st_gcn(64, 64, kernel_size, 1, **kwargs),
-            st_gcn(64, 64, kernel_size, 1, **kwargs),
-            st_gcn(64, 64, kernel_size, 1, **kwargs),
-            st_gcn(64, 128, kernel_size, 2, **kwargs),
-            st_gcn(128, 128, kernel_size, 1, **kwargs),
-            st_gcn(128, 128, kernel_size, 1, **kwargs),
-            st_gcn(128, 256, kernel_size, 2, **kwargs),
-            st_gcn(256, 256, kernel_size, 1, **kwargs),
-            st_gcn(256, 256, kernel_size, 1, **kwargs),
-        ))
+        kwargs0 = {k: v for k, v in kwargs.items() if k != "dropout"}
+        self.st_gcn_networks = nn.ModuleList(
+            (
+                st_gcn(in_channels, 64, kernel_size, 1, residual=False, **kwargs0),
+                st_gcn(64, 64, kernel_size, 1, **kwargs),
+                st_gcn(64, 64, kernel_size, 1, **kwargs),
+                st_gcn(64, 64, kernel_size, 1, **kwargs),
+                st_gcn(64, 128, kernel_size, 2, **kwargs),
+                st_gcn(128, 128, kernel_size, 1, **kwargs),
+                st_gcn(128, 128, kernel_size, 1, **kwargs),
+                st_gcn(128, 256, kernel_size, 2, **kwargs),
+                st_gcn(256, 256, kernel_size, 1, **kwargs),
+                st_gcn(256, 256, kernel_size, 1, **kwargs),
+            )
+        )
 
         # initialize parameters for edge importance weighting
         if edge_importance_weighting:
-            self.edge_importance = nn.ParameterList([
-                nn.Parameter(torch.ones(self.A.size()))
-                for i in self.st_gcn_networks
-            ])
+            self.edge_importance = nn.ParameterList(
+                [nn.Parameter(torch.ones(self.A.size())) for i in self.st_gcn_networks]
+            )
         else:
             self.edge_importance = [1] * len(self.st_gcn_networks)
 
@@ -97,14 +105,14 @@ class STGCN(nn.Module):
         # _, c, t, v = x.size()
         # features = x.view(N, M, c, t, v).permute(0, 2, 3, 4, 1)
         # batch["features"] = features
-        
+
         # global pooling
         x = F.avg_pool2d(x, x.size()[2:])
         x = x.view(N, M, -1, 1, 1).mean(dim=1)
 
         # features
         batch["features"] = x.squeeze()
-        
+
         # prediction
         x = self.fcn(x)
         x = x.view(x.size(0), -1)
@@ -117,17 +125,19 @@ class STGCN(nn.Module):
         ygt = batch["y"]
         for label, pred in zip(ygt, yhat):
             confusion[label][pred] += 1
-        accuracy = torch.trace(confusion)/torch.sum(confusion)
+        accuracy = torch.trace(confusion) / torch.sum(confusion)
         return accuracy
-    
+
     def compute_loss(self, batch):
         cross_entropy = self.criterion(batch["yhat"], batch["y"])
         mixed_loss = cross_entropy
-        
+
         acc = self.compute_accuracy(batch)
-        losses = {"cross_entropy": cross_entropy.item(),
-                  "mixed": mixed_loss.item(),
-                  "accuracy": acc.item()}
+        losses = {
+            "cross_entropy": cross_entropy.item(),
+            "mixed": mixed_loss.item(),
+            "accuracy": acc.item(),
+        }
         return mixed_loss, losses
 
 
@@ -152,21 +162,16 @@ class st_gcn(nn.Module):
             :math:`V` is the number of graph nodes.
     """
 
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 stride=1,
-                 dropout=0,
-                 residual=True):
+    def __init__(
+        self, in_channels, out_channels, kernel_size, stride=1, dropout=0, residual=True
+    ):
         super().__init__()
 
         assert len(kernel_size) == 2
         assert kernel_size[0] % 2 == 1
         padding = ((kernel_size[0] - 1) // 2, 0)
 
-        self.gcn = ConvTemporalGraphical(in_channels, out_channels,
-                                         kernel_size[1])
+        self.gcn = ConvTemporalGraphical(in_channels, out_channels, kernel_size[1])
 
         self.tcn = nn.Sequential(
             nn.BatchNorm2d(out_channels),
@@ -190,11 +195,7 @@ class st_gcn(nn.Module):
 
         else:
             self.residual = nn.Sequential(
-                nn.Conv2d(
-                    in_channels,
-                    out_channels,
-                    kernel_size=1,
-                    stride=(stride, 1)),
+                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=(stride, 1)),
                 nn.BatchNorm2d(out_channels),
             )
 
@@ -210,10 +211,16 @@ class st_gcn(nn.Module):
 
 
 if __name__ == "__main__":
-    model = STGCN(in_channels=3, num_class=60, edge_importance_weighting=True, graph_args={"layout": "smpl_noglobal", "strategy": "spatial"})
+    model = STGCN(
+        in_channels=3,
+        num_class=60,
+        edge_importance_weighting=True,
+        graph_args={"layout": "smpl_noglobal", "strategy": "spatial"},
+    )
     # Batch, in_channels, time, vertices, M
     inp = torch.rand(10, 3, 16, 23, 1)
     out = model(inp)
     print(out.shape)
     import pdb
+
     pdb.set_trace()

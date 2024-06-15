@@ -124,8 +124,6 @@ def transform_vec(v, q, trans="root"):
     return v
 
 
-
-
 def get_heading_q(q):
     hq = q.copy()
     hq[1] = 0

@@ -1,29 +1,38 @@
-import os,sys
+import os, sys
 import argparse
 import yaml
 import time
 
 currentfile = os.path.abspath(__file__)
-code_dir = currentfile.replace('config.py','')
+code_dir = currentfile.replace("config.py", "")
 
-project_dir = currentfile.replace(os.sep + 'acr' + os.sep + 'config.py','')
-source_dir = currentfile.replace(os.sep + 'config.py','')
-root_dir = project_dir.replace(project_dir.split(os.sep)[-1],'')
+project_dir = currentfile.replace(os.sep + "acr" + os.sep + "config.py", "")
+source_dir = currentfile.replace(os.sep + "config.py", "")
+root_dir = project_dir.replace(project_dir.split(os.sep)[-1], "")
 
-time_stamp = time.strftime('%Y-%m-%d_%H:%M:%S',time.localtime(int(round(time.time()*1000))/1000))
-yaml_timestamp = os.path.abspath(os.path.join(project_dir, 'active_configs' + os.sep + "active_context_{}.yaml".format(time_stamp).replace(":","_")))
+time_stamp = time.strftime(
+    "%Y-%m-%d_%H:%M:%S", time.localtime(int(round(time.time() * 1000)) / 1000)
+)
+yaml_timestamp = os.path.abspath(
+    os.path.join(
+        project_dir,
+        "active_configs"
+        + os.sep
+        + "active_context_{}.yaml".format(time_stamp).replace(":", "_"),
+    )
+)
 
-model_dir = os.path.join(project_dir,'model_data')
-trained_model_dir = os.path.join(project_dir,'trained_models')
+model_dir = os.path.join(project_dir, "model_data")
+trained_model_dir = os.path.join(project_dir, "trained_models")
 
 # def parse_args(input_args=None):
 #     def str2bool(str):
 #         return True if (str.lower() == 'True' or str.lower() == 'true') else False
 #     parser = argparse.ArgumentParser(description = 'ACR: Attention Collaboration-based Regressor for Arbitrary Two-Hand Reconstruction [CVPR 2023]')
 #     parser.add_argument('--tab', type = str, default = 'ACR', help = 'additional tabs')
-#     parser.add_argument('--configs_yml', type = str, default = os.path.join(project_dir,'configs/demo.yml'), help = 'settings') 
-#     parser.add_argument('--inputs', type = str, help = 'path to inputs') 
-#     parser.add_argument('--output_dir', type = str, help = 'path to save outputs') 
+#     parser.add_argument('--configs_yml', type = str, default = os.path.join(project_dir,'configs/demo.yml'), help = 'settings')
+#     parser.add_argument('--inputs', type = str, help = 'path to inputs')
+#     parser.add_argument('--output_dir', type = str, help = 'path to save outputs')
 #     parser.add_argument('--interactive_vis',action='store_true',help = 'whether to show the results in an interactive mode')
 #     parser.add_argument('--soi_camera', type = str, default = 'far', help = 'camera mode of show_mesh_stand_on_image: far / close')
 
@@ -257,7 +266,7 @@ trained_model_dir = os.path.join(project_dir,'trained_models')
 #             print("__forceyaml__ DUMPING YAML ")
 #             print("self.yaml_filename", self.yaml_filename)
 #             print("----------------------------------------------")
-            
+
 #     def clean(self):
 #         if os.path.exists(self.yaml_filename):
 #             os.remove(self.yaml_filename)
@@ -270,28 +279,129 @@ trained_model_dir = os.path.join(project_dir,'trained_models')
 #     return ConfigContext.parsed_args
 
 from easydict import EasyDict
-default_acr_cfg = EasyDict({'tab': 'process_images_hrnet_internet', 'configs_yml': '/apdcephfs/private_wallyliang/PLANT/Thirdparty/ACR/configs/demo.yml', 
-            'inputs': '/apdcephfs/private_wallyliang/PLANT/Thirdparty/ACR/demo/magic.mp4', 'output_dir': None, 
-            'interactive_vis': False, 'soi_camera': 'far', 'temporal_optimization': True, 'smooth_coeff': 4, 'save_dict_results': False, 
-            'save_visualization_on_img': True, 'vis_otherview': False, 'higher_resolution': False, 'renderer': 'pyrender', 'render_size': 512, 
-            'cam_id': 0, 'f': None, 'demo_mode': 'video', 'model_return_loss': False, 'model_version': 1, 'multi_hand': True, 'perspective_proj': False, 
-            'FOV': 22.5, 'focal_length': 1265, 'lr': 0.0003, 'adjust_lr_factor': 0.1, 'weight_decay': 1e-06, 'epoch': 120, 'fine_tune': True, 'GPUS': 0, 
-            'batch_size': 64, 'input_size': 512, 'nw': 4, 'optimizer_type': 'Adam', 'pretrain': 'simplebaseline', 'fix_backbone_training_scratch': False, 
-            'debug': False, 'sample': False, 'mix_training': 'single', 'test_in_epoch': None, 'test_out_epoch': None, 'stop_seg_epoch': 2, 'first_decay': 10, 
-            'second_decay': 20, 'gt_scale': False, 'intraction_field': False, 'part_seg_supervision': 'half', 'part_seg_mode': 'digit', 'load_digit_seg': 'yes', 
-            'offset_mode': 'concat', 'attention_mode': 'pred-part', 'inter_prior': True, 'prior_mode': 'cross', 'eval_flip': False, 'backbone': 'hrnet', 
-            'model_precision': 'fp32', 'deconv_num': 0, 'head_block_num': 2, 'merge_mano_camera_head': False, 'load_pretrained': True, 'use_coordmaps': True, 
-            'loss_thresh': 1000, 'max_supervise_num': -1, 'supervise_cam_params': False, 'match_preds_to_gts_for_supervision': True, 'matching_mode': 'all', 
-            'supervise_global_rot': False, 'HMloss_type': 'MSE', 'eval': False, 'train_split': 'train', 'data_hand_type': 'all', 'eval_datasets': 'InterHand26M', 
-            'val_batch_size': 1, 'test_interval': 5000, 'fast_eval_iter': -1, 'top_n_error_vis': 6, 'eval_2dpose': False, 'calc_pck': False, 'PCK_thresh': 150, 
-            'calc_PVE_error': False, 'centermap_size': 64, 'centermap_conf_thresh': 0.35, 'collision_aware_centermap': True, 'collision_factor': 0.2, 'center_def_kp': True, 
-            'local_rank': 0, 'distributed_training': False, 'print_freq': 50, 'model_path': '/apdcephfs/private_wallyliang/PLANT/Thirdparty/ACR/wild.pkl', 
-            'log_path': '/apdcephfs/private_wallyliang/PLANT/Thirdparty/log/', 'shuffle_crop_mode': False, 'shuffle_crop_ratio_3d': 0.9, 'shuffle_crop_ratio_2d': 0.1, 
-            'Synthetic_occlusion_ratio': 0, 'color_jittering_ratio': 0.2, 'rotate_prob': 0.2, 'flip_ratio': 0.5, 'dataset_rootdir': '/apdcephfs/private_wallyliang/PLANT/Thirdparty/dataset/', 
-            'dataset': 'internet', 'voc_dir': '/apdcephfs/private_wallyliang/PLANT/Thirdparty/dataset/VOCdevkit/VOC2012/', 'max_hand': 4, 'homogenize_pose_space': False, 
-            'use_eft': True, 'mano_mesh_root_align': True, 'Rot_type': '6D', 'rot_dim': 6, 'cam_dim': 3, 'align_idx': 9, 'beta_dim': 10, 'mano_theta_num': 16, 
-            'mano_model_path': 'model_data/mano', 'mano_uvmap': '/apdcephfs/private_wallyliang/PLANT/Thirdparty/ACR/model_data/parameters/mano_vt_ft.npz', 
-            'wardrobe': '/apdcephfs/private_wallyliang/PLANT/Thirdparty/ACR/model_data/wardrobe', 'lr_test': 0.1, 
-            'track_memory_usage': False, 'adjust_lr_epoch': [], 'kernel_sizes': [5], 'mesh_cloth': 'ghostwhite'})
 
-def args(): return default_acr_cfg
+default_acr_cfg = EasyDict(
+    {
+        "tab": "process_images_hrnet_internet",
+        "configs_yml": "/apdcephfs/private_wallyliang/PLANT/Thirdparty/ACR/configs/demo.yml",
+        "inputs": "/apdcephfs/private_wallyliang/PLANT/Thirdparty/ACR/demo/magic.mp4",
+        "output_dir": None,
+        "interactive_vis": False,
+        "soi_camera": "far",
+        "temporal_optimization": True,
+        "smooth_coeff": 4,
+        "save_dict_results": False,
+        "save_visualization_on_img": True,
+        "vis_otherview": False,
+        "higher_resolution": False,
+        "renderer": "pyrender",
+        "render_size": 512,
+        "cam_id": 0,
+        "f": None,
+        "demo_mode": "video",
+        "model_return_loss": False,
+        "model_version": 1,
+        "multi_hand": True,
+        "perspective_proj": False,
+        "FOV": 22.5,
+        "focal_length": 1265,
+        "lr": 0.0003,
+        "adjust_lr_factor": 0.1,
+        "weight_decay": 1e-06,
+        "epoch": 120,
+        "fine_tune": True,
+        "GPUS": 0,
+        "batch_size": 64,
+        "input_size": 512,
+        "nw": 4,
+        "optimizer_type": "Adam",
+        "pretrain": "simplebaseline",
+        "fix_backbone_training_scratch": False,
+        "debug": False,
+        "sample": False,
+        "mix_training": "single",
+        "test_in_epoch": None,
+        "test_out_epoch": None,
+        "stop_seg_epoch": 2,
+        "first_decay": 10,
+        "second_decay": 20,
+        "gt_scale": False,
+        "intraction_field": False,
+        "part_seg_supervision": "half",
+        "part_seg_mode": "digit",
+        "load_digit_seg": "yes",
+        "offset_mode": "concat",
+        "attention_mode": "pred-part",
+        "inter_prior": True,
+        "prior_mode": "cross",
+        "eval_flip": False,
+        "backbone": "hrnet",
+        "model_precision": "fp32",
+        "deconv_num": 0,
+        "head_block_num": 2,
+        "merge_mano_camera_head": False,
+        "load_pretrained": True,
+        "use_coordmaps": True,
+        "loss_thresh": 1000,
+        "max_supervise_num": -1,
+        "supervise_cam_params": False,
+        "match_preds_to_gts_for_supervision": True,
+        "matching_mode": "all",
+        "supervise_global_rot": False,
+        "HMloss_type": "MSE",
+        "eval": False,
+        "train_split": "train",
+        "data_hand_type": "all",
+        "eval_datasets": "InterHand26M",
+        "val_batch_size": 1,
+        "test_interval": 5000,
+        "fast_eval_iter": -1,
+        "top_n_error_vis": 6,
+        "eval_2dpose": False,
+        "calc_pck": False,
+        "PCK_thresh": 150,
+        "calc_PVE_error": False,
+        "centermap_size": 64,
+        "centermap_conf_thresh": 0.35,
+        "collision_aware_centermap": True,
+        "collision_factor": 0.2,
+        "center_def_kp": True,
+        "local_rank": 0,
+        "distributed_training": False,
+        "print_freq": 50,
+        "model_path": "/apdcephfs/private_wallyliang/PLANT/Thirdparty/ACR/wild.pkl",
+        "log_path": "/apdcephfs/private_wallyliang/PLANT/Thirdparty/log/",
+        "shuffle_crop_mode": False,
+        "shuffle_crop_ratio_3d": 0.9,
+        "shuffle_crop_ratio_2d": 0.1,
+        "Synthetic_occlusion_ratio": 0,
+        "color_jittering_ratio": 0.2,
+        "rotate_prob": 0.2,
+        "flip_ratio": 0.5,
+        "dataset_rootdir": "/apdcephfs/private_wallyliang/PLANT/Thirdparty/dataset/",
+        "dataset": "internet",
+        "voc_dir": "/apdcephfs/private_wallyliang/PLANT/Thirdparty/dataset/VOCdevkit/VOC2012/",
+        "max_hand": 4,
+        "homogenize_pose_space": False,
+        "use_eft": True,
+        "mano_mesh_root_align": True,
+        "Rot_type": "6D",
+        "rot_dim": 6,
+        "cam_dim": 3,
+        "align_idx": 9,
+        "beta_dim": 10,
+        "mano_theta_num": 16,
+        "mano_model_path": "model_data/mano",
+        "mano_uvmap": "/apdcephfs/private_wallyliang/PLANT/Thirdparty/ACR/model_data/parameters/mano_vt_ft.npz",
+        "wardrobe": "/apdcephfs/private_wallyliang/PLANT/Thirdparty/ACR/model_data/wardrobe",
+        "lr_test": 0.1,
+        "track_memory_usage": False,
+        "adjust_lr_epoch": [],
+        "kernel_sizes": [5],
+        "mesh_cloth": "ghostwhite",
+    }
+)
+
+
+def args():
+    return default_acr_cfg

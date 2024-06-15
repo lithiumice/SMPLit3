@@ -42,7 +42,7 @@ class AnyRep2SMPLjoints:
 
     def traj_to_joints(self, denormed_traj_motion, remove_float=True, zup_to_yup=False):
         # import ipdb;ipdb.set_trace()
-        betas = torch.zeros_like(denormed_traj_motion[:,:10])
+        betas = torch.zeros_like(denormed_traj_motion[:, :10])
         if denormed_traj_motion.shape[-1] == 203:
             pred_local_traj, pred_body_pose, _ = torch.split(
                 denormed_traj_motion.cuda(),

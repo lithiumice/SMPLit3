@@ -3,10 +3,13 @@ import numpy as np
 import torch
 import math
 
+
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=False)
+    return nn.Conv2d(
+        in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False
+    )
+
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -43,15 +46,22 @@ class BasicBlock(nn.Module):
 class Bottleneck(nn.Module):
     expansion = 4
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, emoca_specific=False):
+    def __init__(
+        self, inplanes, planes, stride=1, downsample=None, emoca_specific=False
+    ):
         super(Bottleneck, self).__init__()
         if emoca_specific:
             self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
-            self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
-                               padding=1, bias=False)
+            self.conv2 = nn.Conv2d(
+                planes, planes, kernel_size=3, stride=stride, padding=1, bias=False
+            )
         else:
-            self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride, bias=False)
-            self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
+            self.conv1 = nn.Conv2d(
+                inplanes, planes, kernel_size=1, stride=stride, bias=False
+            )
+            self.conv2 = nn.Conv2d(
+                planes, planes, kernel_size=3, stride=1, padding=1, bias=False
+            )
 
         self.bn1 = nn.BatchNorm2d(planes)
 
@@ -87,11 +97,13 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, num_classes=1000, include_top=True, emoca_specific=False):
+    def __init__(
+        self, block, layers, num_classes=1000, include_top=True, emoca_specific=False
+    ):
         self.inplanes = 64
         super(ResNet, self).__init__()
         self.include_top = include_top
-        
+
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
@@ -99,20 +111,22 @@ class ResNet(nn.Module):
         if emoca_specific:
             self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         else:
-            self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=0, ceil_mode=True)
+            self.maxpool = nn.MaxPool2d(
+                kernel_size=3, stride=2, padding=0, ceil_mode=True
+            )
 
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.avgpool = nn.AvgPool2d(7, stride=1)
-        
+
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
+                m.weight.data.normal_(0, math.sqrt(2.0 / n))
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
@@ -121,13 +135,20 @@ class ResNet(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False),
+                nn.Conv2d(
+                    self.inplanes,
+                    planes * block.expansion,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
                 nn.BatchNorm2d(planes * block.expansion),
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, self.emoca_specific))
+        layers.append(
+            block(self.inplanes, planes, stride, downsample, self.emoca_specific)
+        )
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes))
@@ -146,7 +167,7 @@ class ResNet(nn.Module):
         x = self.layer4(x)
 
         x = self.avgpool(x)
-        
+
         if not self.include_top:
             return x
 
@@ -154,13 +175,16 @@ class ResNet(nn.Module):
         x = self.fc(x)
         return x
 
+
 def resnet50(**kwargs):
-    """Constructs a ResNet-50 model.
-    """
+    """Constructs a ResNet-50 model."""
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     return model
 
+
 import pickle
+
+
 def load_state_dict(model, fname):
     """
     Set parameters converted from Caffe models authors of VGGFace2 provide.
@@ -169,8 +193,8 @@ def load_state_dict(model, fname):
         model: model
         fname: file name of parameters converted from a Caffe model, assuming the file format is Pickle.
     """
-    with open(fname, 'rb') as f:
-        weights = pickle.load(f, encoding='latin1')
+    with open(fname, "rb") as f:
+        weights = pickle.load(f, encoding="latin1")
 
     own_state = model.state_dict()
     for name, param in weights.items():
@@ -178,8 +202,11 @@ def load_state_dict(model, fname):
             try:
                 own_state[name].copy_(torch.from_numpy(param))
             except Exception:
-                raise RuntimeError('While copying the parameter named {}, whose dimensions in the model are {} and whose '\
-                                   'dimensions in the checkpoint are {}.'.format(name, own_state[name].size(), param.size()))
+                raise RuntimeError(
+                    "While copying the parameter named {}, whose dimensions in the model are {} and whose "
+                    "dimensions in the checkpoint are {}.".format(
+                        name, own_state[name].size(), param.size()
+                    )
+                )
         else:
             raise KeyError('unexpected key "{}" in state_dict'.format(name))
-

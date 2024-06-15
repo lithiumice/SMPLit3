@@ -165,36 +165,35 @@ class Skeleton:
                         bone.end += np.array(offsets[c_bone]) * self.len_scale
                         break
             else:
-                bone.end = sum([bone_c.pos
-                                for bone_c in bone.child]) / len(bone.child)
+                bone.end = sum([bone_c.pos for bone_c in bone.child]) / len(bone.child)
                 for bone_c in bone.child:
                     bone.ends.append(bone_c.pos.copy())
 
     def write_str(
-            self,
-            template_fname=TEMPLATE_FILE,
-            offset=np.array([0, 0, 0]),
-            ref_angles=None,
-            bump_buffer=False,
+        self,
+        template_fname=TEMPLATE_FILE,
+        offset=np.array([0, 0, 0]),
+        ref_angles=None,
+        bump_buffer=False,
     ):
-        tree = self.construct_tree(ref_angles=ref_angles,
-                                   offset=offset,
-                                   template_fname=template_fname)
+        tree = self.construct_tree(
+            ref_angles=ref_angles, offset=offset, template_fname=template_fname
+        )
         if bump_buffer:
             SubElement(tree.getroot(), "size", self.buffer_dict)
         return etree.tostring(tree, pretty_print=True)
 
     def write_xml(
-            self,
-            fname,
-            template_fname=TEMPLATE_FILE,
-            offset=np.array([0, 0, 0]),
-            ref_angles=None,
-            bump_buffer=False,
+        self,
+        fname,
+        template_fname=TEMPLATE_FILE,
+        offset=np.array([0, 0, 0]),
+        ref_angles=None,
+        bump_buffer=False,
     ):
-        tree = self.construct_tree(ref_angles=ref_angles,
-                                   offset=offset,
-                                   template_fname=template_fname)
+        tree = self.construct_tree(
+            ref_angles=ref_angles, offset=offset, template_fname=template_fname
+        )
         if bump_buffer:
             SubElement(tree.getroot(), "size", self.buffer_dict)
         # create sensors
@@ -209,10 +208,10 @@ class Skeleton:
         tree.write(fname, pretty_print=True)
 
     def construct_tree(
-            self,
-            template_fname=TEMPLATE_FILE,
-            offset=np.array([0, 0, 0]),
-            ref_angles=None,
+        self,
+        template_fname=TEMPLATE_FILE,
+        offset=np.array([0, 0, 0]),
+        ref_angles=None,
     ):
         if ref_angles is None:
             ref_angles = {}
@@ -227,9 +226,8 @@ class Skeleton:
         for bone in self.bones:
             if os.path.exists(f"{self.model_dir}/geom/{bone.name}.stl"):
                 attr = {
-                    "file":
-                    f"{self.model_dir.split('/')[-1]}/geom/{bone.name}.stl",
-                    "name": f"{bone.name}_mesh"
+                    "file": f"{self.model_dir.split('/')[-1]}/geom/{bone.name}.stl",
+                    "name": f"{bone.name}_mesh",
                 }
                 # geom_relative_path = f'../mesh/smpl/{self.model_dir.split("/")[-1]}'
                 # attr = {"file": f"{geom_relative_path}/geom/{bone.name}.stl", "name": f"{bone.name}_mesh"}
@@ -302,8 +300,7 @@ class Skeleton:
 
                 j_attr["name"] = bone.name + "_" + bone.channels[i]
                 j_attr["type"] = "hinge"
-                j_attr["pos"] = "{0:.4f} {1:.4f} {2:.4f}".format(*(bone.pos +
-                                                                   offset))
+                j_attr["pos"] = "{0:.4f} {1:.4f} {2:.4f}".format(*(bone.pos + offset))
                 j_attr["axis"] = "{0:.4f} {1:.4f} {2:.4f}".format(*axis)
 
                 j_attr["stiffness"] = str(GAINS[bone.name][0])
@@ -314,8 +311,7 @@ class Skeleton:
                     j_attr["armature"] = "0.02"
 
                 if i < len(bone.lb):
-                    j_attr["range"] = "{0:.4f} {1:.4f}".format(
-                        bone.lb[i], bone.ub[i])
+                    j_attr["range"] = "{0:.4f} {1:.4f}".format(bone.lb[i], bone.ub[i])
                 else:
                     j_attr["range"] = "-180.0 180.0"
                 if j_attr["name"] in ref_angles.keys():
@@ -347,12 +343,15 @@ class Skeleton:
                 if not self.color_dict is None:
                     g_attr["rgba"] = self.color_dict[bone.name]
 
-                if bone.name in ["L_Ankle", "R_Ankle", "L_Toe", "R_Toe"
-                                 ] and self.replace_feet:
+                if (
+                    bone.name in ["L_Ankle", "R_Ankle", "L_Toe", "R_Toe"]
+                    and self.replace_feet
+                ):
                     g_attr = {}
                     hull_params = self.hull_dict[bone.name]
-                    min_verts, max_verts = hull_params['norm_verts'].min(
-                        axis=0), hull_params['norm_verts'].max(axis=0)
+                    min_verts, max_verts = hull_params["norm_verts"].min(
+                        axis=0
+                    ), hull_params["norm_verts"].max(axis=0)
                     size = max_verts - min_verts
 
                     bone_end = bone.end
@@ -360,27 +359,32 @@ class Skeleton:
                     size /= 2
 
                     if bone.name == "L_Toe" or bone.name == "R_Toe":
-                        parent_min, parent_max = self.hull_dict[
-                            bone.parent.name]['norm_verts'].min(
-                                axis=0), self.hull_dict[
-                                    bone.parent.name]['norm_verts'].max(axis=0)
+                        parent_min, parent_max = self.hull_dict[bone.parent.name][
+                            "norm_verts"
+                        ].min(axis=0), self.hull_dict[bone.parent.name][
+                            "norm_verts"
+                        ].max(
+                            axis=0
+                        )
                         parent_pos = (parent_max + parent_min) / 2
 
-                        pos[2] = parent_min[2] - bone.pos[2] + size[
-                            2]  # To get toe to be at the same height as the parent
-                        pos[1] = parent_pos[1] - bone.pos[
-                            1]  # To get toe to be at the y as the parent
+                        pos[2] = (
+                            parent_min[2] - bone.pos[2] + size[2]
+                        )  # To get toe to be at the same height as the parent
+                        pos[1] = (
+                            parent_pos[1] - bone.pos[1]
+                        )  # To get toe to be at the y as the parent
 
                     rot = np.array([1, 0, 0, 0])
                     if self.real_weight_porpotion_capsules:
                         g_attr["density"] = str(
-                            (hull_params['volume'] /
-                             (size[0] * size[1] * size[2] * 8)) * base_density)
+                            (hull_params["volume"] / (size[0] * size[1] * size[2] * 8))
+                            * base_density
+                        )
                     g_attr["type"] = "box"
                     g_attr["pos"] = "{0:.4f} {1:.4f} {2:.4f}".format(*pos)
                     g_attr["size"] = "{0:.4f} {1:.4f} {2:.4f}".format(*size)
-                    g_attr["quat"] = "{0:.4f} {1:.4f} {2:.4f} {3:.4f}".format(
-                        *rot)
+                    g_attr["quat"] = "{0:.4f} {1:.4f} {2:.4f} {3:.4f}".format(*rot)
 
             SubElement(node, "geom", g_attr)
         else:
@@ -394,9 +398,11 @@ class Skeleton:
                     e1 += v * 0.02
                     e2 -= v * 0.02
                     g_attr["type"] = "capsule"
-                    g_attr[
-                        "fromto"] = "{0:.4f} {1:.4f} {2:.4f} {3:.4f} {4:.4f} {5:.4f}".format(
-                            *np.concatenate([e1, e2]))
+                    g_attr["fromto"] = (
+                        "{0:.4f} {1:.4f} {2:.4f} {3:.4f} {4:.4f} {5:.4f}".format(
+                            *np.concatenate([e1, e2])
+                        )
+                    )
                 else:
                     g_attr["type"] = "sphere"
                     g_attr["pos"] = "{0:.4f} {1:.4f} {2:.4f}".format(*bone.pos)
@@ -413,5 +419,3 @@ class Skeleton:
         # write child bones
         for bone_c in bone.child:
             self.write_xml_bodynode(bone_c, node, offset, ref_angles)
-
-            

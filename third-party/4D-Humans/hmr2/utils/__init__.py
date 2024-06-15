@@ -6,6 +6,7 @@ from .mesh_renderer import MeshRenderer
 from .skeleton_renderer import SkeletonRenderer
 from .pose_utils import eval_pose, Evaluator
 
+
 def recursive_to(x: Any, target: torch.device):
     """
     Recursively transfer a batch of data to the target device

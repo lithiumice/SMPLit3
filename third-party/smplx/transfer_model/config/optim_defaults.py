@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 @dataclass
 class LBFGS:
-    line_search_fn: str = 'strong_wolfe'
+    line_search_fn: str = "strong_wolfe"
     max_iter: int = 50
 
 
@@ -53,7 +53,7 @@ class TrustRegionNewtonCG:
 
 @dataclass
 class OptimConfig:
-    type: str = 'trust-ncg'
+    type: str = "trust-ncg"
     lr: float = 1.0
     gtol: float = 1e-8
     ftol: float = -1.0

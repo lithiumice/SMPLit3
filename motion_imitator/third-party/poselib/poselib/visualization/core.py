@@ -53,8 +53,7 @@ class BasePlotterTask(object):
         return self._task_name + "/" + name
 
     def __iter__(self):
-        """Should override this function to return a list of task primitives
-        """
+        """Should override this function to return a list of task primitives"""
         raise NotImplementedError
 
 

@@ -38,33 +38,73 @@ class LocalEncoder(nn.Module):
             last_pool = True if i == args.num_layers - 1 else False
 
             # (T, J, D) => (T, J', D)
-            pool = SkeletonPool(edges=self.topologies[i], pooling_mode=args.skeleton_pool,
-                                channels_per_edge=out_channels // len(neighbour_list), last_pool=last_pool)
+            pool = SkeletonPool(
+                edges=self.topologies[i],
+                pooling_mode=args.skeleton_pool,
+                channels_per_edge=out_channels // len(neighbour_list),
+                last_pool=last_pool,
+            )
 
             if args.use_residual_blocks:
                 # (T, J, D) => (T/2, J', 2D)
-                seq.append(SkeletonResidual(self.topologies[i], neighbour_list, joint_num=self.edge_num[i], in_channels=in_channels, out_channels=out_channels,
-                                            kernel_size=kernel_size, stride=2, padding=padding, padding_mode=args.padding_mode, bias=bias,
-                                            extra_conv=args.extra_conv, pooling_mode=args.skeleton_pool, activation=args.activation, last_pool=last_pool,
-                                            use_group_norm=args.use_group_norm,
-                                            ))
+                seq.append(
+                    SkeletonResidual(
+                        self.topologies[i],
+                        neighbour_list,
+                        joint_num=self.edge_num[i],
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        stride=2,
+                        padding=padding,
+                        padding_mode=args.padding_mode,
+                        bias=bias,
+                        extra_conv=args.extra_conv,
+                        pooling_mode=args.skeleton_pool,
+                        activation=args.activation,
+                        last_pool=last_pool,
+                        use_group_norm=args.use_group_norm,
+                    )
+                )
             else:
                 for _ in range(args.extra_conv):
                     # (T, J, D) => (T, J, D)
-                    seq.append(SkeletonConv(neighbour_list, in_channels=in_channels, out_channels=in_channels,
-                                            joint_num=self.edge_num[i], kernel_size=kernel_size - 1 if kernel_even else kernel_size,
-                                            stride=1,
-                                            padding=padding, padding_mode=args.padding_mode, bias=bias))
-                    seq.append(nn.PReLU() if args.activation == 'relu' else nn.Tanh())
+                    seq.append(
+                        SkeletonConv(
+                            neighbour_list,
+                            in_channels=in_channels,
+                            out_channels=in_channels,
+                            joint_num=self.edge_num[i],
+                            kernel_size=kernel_size - 1 if kernel_even else kernel_size,
+                            stride=1,
+                            padding=padding,
+                            padding_mode=args.padding_mode,
+                            bias=bias,
+                        )
+                    )
+                    seq.append(nn.PReLU() if args.activation == "relu" else nn.Tanh())
                 # (T, J, D) => (T/2, J, 2D)
-                seq.append(SkeletonConv(neighbour_list, in_channels=in_channels, out_channels=out_channels,
-                                        joint_num=self.edge_num[i], kernel_size=kernel_size, stride=2,
-                                        padding=padding, padding_mode=args.padding_mode, bias=bias, add_offset=False,
-                                        in_offset_channel=3 * self.channel_base[i] // self.channel_base[0]))
+                seq.append(
+                    SkeletonConv(
+                        neighbour_list,
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        joint_num=self.edge_num[i],
+                        kernel_size=kernel_size,
+                        stride=2,
+                        padding=padding,
+                        padding_mode=args.padding_mode,
+                        bias=bias,
+                        add_offset=False,
+                        in_offset_channel=3
+                        * self.channel_base[i]
+                        // self.channel_base[0],
+                    )
+                )
                 # self.convs.append(seq[-1])
 
                 seq.append(pool)
-                seq.append(nn.PReLU() if args.activation == 'relu' else nn.Tanh())
+                seq.append(nn.PReLU() if args.activation == "relu" else nn.Tanh())
             self.layers.append(nn.Sequential(*seq))
 
             self.topologies.append(pool.new_edges)
@@ -95,10 +135,42 @@ class GlobalEncoder(nn.Module):
         padding = (kernel_size - 1) // 2
 
         self.encoder = nn.Sequential(
-            ResidualBlock(in_channels=in_channels, out_channels=128, kernel_size=kernel_size, stride=2, padding=padding, residual_ratio=residual_ratio(1), activation=args.activation),
-            ResidualBlock(in_channels=128, out_channels=256, kernel_size=kernel_size, stride=2, padding=padding, residual_ratio=residual_ratio(2), activation=args.activation),
-            ResidualBlock(in_channels=256, out_channels=512, kernel_size=kernel_size, stride=2, padding=padding, residual_ratio=residual_ratio(3), activation=args.activation),
-            ResidualBlock(in_channels=512, out_channels=out_channels, kernel_size=kernel_size, stride=2, padding=padding, residual_ratio=residual_ratio(4), activation=args.activation)
+            ResidualBlock(
+                in_channels=in_channels,
+                out_channels=128,
+                kernel_size=kernel_size,
+                stride=2,
+                padding=padding,
+                residual_ratio=residual_ratio(1),
+                activation=args.activation,
+            ),
+            ResidualBlock(
+                in_channels=128,
+                out_channels=256,
+                kernel_size=kernel_size,
+                stride=2,
+                padding=padding,
+                residual_ratio=residual_ratio(2),
+                activation=args.activation,
+            ),
+            ResidualBlock(
+                in_channels=256,
+                out_channels=512,
+                kernel_size=kernel_size,
+                stride=2,
+                padding=padding,
+                residual_ratio=residual_ratio(3),
+                activation=args.activation,
+            ),
+            ResidualBlock(
+                in_channels=512,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=2,
+                padding=padding,
+                residual_ratio=residual_ratio(4),
+                activation=args.activation,
+            ),
         )
 
         in_features = out_channels * args.temporal_scale

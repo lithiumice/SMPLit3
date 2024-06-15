@@ -76,5 +76,3 @@ def difftraj_entry(
 
 if __name__ == "__main__":
     difftraj_entry()
-
-

@@ -10,7 +10,7 @@ class Policy(nn.Module):
         raise NotImplementedError
 
     def select_action(self, x, mean_action=False):
-        dist = self.forward(x) 
+        dist = self.forward(x)
         action = dist.mean_sample() if mean_action else dist.sample()
         return action
 

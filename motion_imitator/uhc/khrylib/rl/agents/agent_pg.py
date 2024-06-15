@@ -6,8 +6,15 @@ import time
 
 class AgentPG(Agent):
 
-    def __init__(self, tau=0.95, optimizer_policy=None, optimizer_value=None,
-                 opt_num_epochs=1, value_opt_niter=1, **kwargs):
+    def __init__(
+        self,
+        tau=0.95,
+        optimizer_policy=None,
+        optimizer_value=None,
+        opt_num_epochs=1,
+        value_opt_niter=1,
+        **kwargs
+    ):
         super().__init__(**kwargs)
         self.tau = tau
         self.optimizer_policy = optimizer_policy
@@ -30,7 +37,9 @@ class AgentPG(Agent):
         ind = exps.nonzero().squeeze(1)
         for _ in range(self.opt_num_epochs):
             self.update_value(states, returns)
-            log_probs = self.policy_net.get_log_prob(self.trans_policy(states)[ind], actions[ind])
+            log_probs = self.policy_net.get_log_prob(
+                self.trans_policy(states)[ind], actions[ind]
+            )
             policy_loss = -(log_probs * advantages[ind]).mean()
             self.optimizer_policy.zero_grad()
             policy_loss.backward()
@@ -49,7 +58,9 @@ class AgentPG(Agent):
                 values = self.value_net(self.trans_value(states))
 
         """get advantage estimation from the trajectories"""
-        advantages, returns = estimate_advantages(rewards, masks, values, self.gamma, self.tau)
+        advantages, returns = estimate_advantages(
+            rewards, masks, values, self.gamma, self.tau
+        )
 
         self.update_policy(states, actions, returns, advantages, exps)
 

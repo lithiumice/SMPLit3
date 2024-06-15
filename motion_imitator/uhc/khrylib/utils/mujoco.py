@@ -1,5 +1,6 @@
 from uhc.utils.math_utils import *
 
+
 def get_body_qveladdr(model):
     body_qposaddr = dict()
     for i, body_name in enumerate(model.body_names):
@@ -15,6 +16,7 @@ def get_body_qveladdr(model):
         body_qposaddr[body_name] = (start_qposaddr, end_qposaddr)
     return body_qposaddr
 
+
 def get_body_qposaddr(model):
     body_qposaddr = dict()
     for i, body_name in enumerate(model.body_names):
@@ -29,6 +31,7 @@ def get_body_qposaddr(model):
             end_qposaddr = model.nq
         body_qposaddr[body_name] = (start_qposaddr, end_qposaddr)
     return body_qposaddr
+
 
 def align_human_state(qpos, qvel, ref_qpos):
     qpos[:2] = ref_qpos[:2]
@@ -47,7 +50,7 @@ def get_traj_pos(orig_traj):
 def get_traj_vel(orig_traj, dt):
     traj_vel = []
     for i in range(orig_traj.shape[0] - 1):
-        vel = get_qvel_fd(orig_traj[i, :], orig_traj[i + 1, :], dt, 'heading')
+        vel = get_qvel_fd(orig_traj[i, :], orig_traj[i + 1, :], dt, "heading")
         traj_vel.append(vel)
     traj_vel.append(traj_vel[-1].copy())
     traj_vel = np.vstack(traj_vel)

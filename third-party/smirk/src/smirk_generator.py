@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from collections import OrderedDict
 
+
 class SmirkGenerator(nn.Module):
 
     def __init__(self, in_channels=3, out_channels=1, init_features=16, res_blocks=3):
@@ -18,27 +19,41 @@ class SmirkGenerator(nn.Module):
         self.encoder4 = SmirkGenerator._block(features * 4, features * 8, name="enc4")
         self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        self.bottleneck = SmirkGenerator._block(features * 8, features * 16, name="bottleneck")
+        self.bottleneck = SmirkGenerator._block(
+            features * 8, features * 16, name="bottleneck"
+        )
         # add multiple (K) resnet blocks as modulelist
         resnet_blocks = []
         for _ in range(res_blocks):
             resnet_blocks.append(
-                    ResnetBlock(features * 16, padding_type='reflect', norm_layer=nn.BatchNorm2d, use_dropout=False, use_bias=False)
+                ResnetBlock(
+                    features * 16,
+                    padding_type="reflect",
+                    norm_layer=nn.BatchNorm2d,
+                    use_dropout=False,
+                    use_bias=False,
+                )
             )
         self.resnet_blocks = nn.ModuleList(resnet_blocks)
 
         self.upconv4 = nn.ConvTranspose2d(
             features * 16, features * 8, kernel_size=2, stride=2
         )
-        self.decoder4 = SmirkGenerator._block((features * 8) * 2, features * 8, name="dec4")
+        self.decoder4 = SmirkGenerator._block(
+            (features * 8) * 2, features * 8, name="dec4"
+        )
         self.upconv3 = nn.ConvTranspose2d(
             features * 8, features * 4, kernel_size=2, stride=2
         )
-        self.decoder3 = SmirkGenerator._block((features * 4) * 2, features * 4, name="dec3")
+        self.decoder3 = SmirkGenerator._block(
+            (features * 4) * 2, features * 4, name="dec3"
+        )
         self.upconv2 = nn.ConvTranspose2d(
             features * 4, features * 2, kernel_size=2, stride=2
         )
-        self.decoder2 = SmirkGenerator._block((features * 2) * 2, features * 2, name="dec2")
+        self.decoder2 = SmirkGenerator._block(
+            (features * 2) * 2, features * 2, name="dec2"
+        )
         self.upconv1 = nn.ConvTranspose2d(
             features * 2, features, kernel_size=2, stride=2
         )
@@ -50,7 +65,7 @@ class SmirkGenerator(nn.Module):
 
     def forward(self, x):
 
-        #if use_mask:
+        # if use_mask:
         #    mask = (x[:, 3:] == 0).all(dim=1, keepdim=True).float()
 
         enc1 = self.encoder1(x)
@@ -78,9 +93,9 @@ class SmirkGenerator(nn.Module):
         out = torch.sigmoid(self.conv(dec1))
 
         # do this better!
-        #if use_mask:
+        # if use_mask:
         #    out = out[:, :3] * mask + out[:, 3:] * (1 - mask)
-        #else:
+        # else:
         #    out = out[:,:3]
 
         return out
@@ -118,6 +133,7 @@ class SmirkGenerator(nn.Module):
             )
         )
 
+
 class ResnetBlock(nn.Module):
     """Define a Resnet block"""
 
@@ -130,7 +146,9 @@ class ResnetBlock(nn.Module):
         Original Resnet paper: https://arxiv.org/pdf/1512.03385.pdf
         """
         super(ResnetBlock, self).__init__()
-        self.conv_block = self.build_conv_block(dim, padding_type, norm_layer, use_dropout, use_bias)
+        self.conv_block = self.build_conv_block(
+            dim, padding_type, norm_layer, use_dropout, use_bias
+        )
 
     def build_conv_block(self, dim, padding_type, norm_layer, use_dropout, use_bias):
         """Construct a convolutional block.
@@ -146,29 +164,36 @@ class ResnetBlock(nn.Module):
         """
         conv_block = []
         p = 0
-        if padding_type == 'reflect':
+        if padding_type == "reflect":
             conv_block += [nn.ReflectionPad2d(1)]
-        elif padding_type == 'replicate':
+        elif padding_type == "replicate":
             conv_block += [nn.ReplicationPad2d(1)]
-        elif padding_type == 'zero':
+        elif padding_type == "zero":
             p = 1
         else:
-            raise NotImplementedError('padding [%s] is not implemented' % padding_type)
+            raise NotImplementedError("padding [%s] is not implemented" % padding_type)
 
-        conv_block += [nn.Conv2d(dim, dim, kernel_size=3, padding=p, bias=use_bias), norm_layer(dim), nn.ReLU(True)]
+        conv_block += [
+            nn.Conv2d(dim, dim, kernel_size=3, padding=p, bias=use_bias),
+            norm_layer(dim),
+            nn.ReLU(True),
+        ]
         if use_dropout:
             conv_block += [nn.Dropout(0.5)]
 
         p = 0
-        if padding_type == 'reflect':
+        if padding_type == "reflect":
             conv_block += [nn.ReflectionPad2d(1)]
-        elif padding_type == 'replicate':
+        elif padding_type == "replicate":
             conv_block += [nn.ReplicationPad2d(1)]
-        elif padding_type == 'zero':
+        elif padding_type == "zero":
             p = 1
         else:
-            raise NotImplementedError('padding [%s] is not implemented' % padding_type)
-        conv_block += [nn.Conv2d(dim, dim, kernel_size=3, padding=p, bias=use_bias), norm_layer(dim)]
+            raise NotImplementedError("padding [%s] is not implemented" % padding_type)
+        conv_block += [
+            nn.Conv2d(dim, dim, kernel_size=3, padding=p, bias=use_bias),
+            norm_layer(dim),
+        ]
 
         return nn.Sequential(*conv_block)
 

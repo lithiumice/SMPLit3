@@ -20,10 +20,20 @@ def transform_torch3d(T_c2w):
     returns (*, 3, 3), (*, 3)
     """
     R1 = torch.tensor(
-        [[-1.0, 0.0, 0.0], [0.0, -1.0, 0.0], [0.0, 0.0, 1.0],], device=T_c2w.device,
+        [
+            [-1.0, 0.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ],
+        device=T_c2w.device,
     )
     R2 = torch.tensor(
-        [[1.0, 0.0, 0.0], [0.0, -1.0, 0.0], [0.0, 0.0, -1.0],], device=T_c2w.device,
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, 0.0, -1.0],
+        ],
+        device=T_c2w.device,
     )
     cam_R, cam_t = T_c2w[..., :3, :3], T_c2w[..., :3, 3]
     cam_R = torch.einsum("...ij,jk->...ik", cam_R, R1)
@@ -236,7 +246,14 @@ def camera_marker_geometry(radius, height, up):
         )
 
     faces = np.array(
-        [[0, 3, 1], [1, 3, 2], [0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4],]
+        [
+            [0, 3, 1],
+            [1, 3, 2],
+            [0, 1, 4],
+            [1, 2, 4],
+            [2, 3, 4],
+            [3, 0, 4],
+        ]
     )
 
     face_colors = np.array(

@@ -13,20 +13,49 @@ from holden.Animation import Animation
 from holden.Quaternions import Quaternions
 
 SMPL_JOINTS = {
-    'Pelvis': 0,
-    'L_Hip': 1, 'L_Knee': 4, 'L_Ankle': 7, 'L_Foot': 10,
-    'R_Hip': 2, 'R_Knee': 5, 'R_Ankle': 8, 'R_Foot': 11,
-    'Spine1': 3, 'Spine2': 6, 'Spine3': 9, 'Neck': 12, 'Head': 15,
-    'L_Collar': 13, 'L_Shoulder': 16, 'L_Elbow': 18, 'L_Wrist': 20, 'L_Hand': 22,
-    'R_Collar': 14, 'R_Shoulder': 17, 'R_Elbow': 19, 'R_Wrist': 21, 'R_Hand': 23
+    "Pelvis": 0,
+    "L_Hip": 1,
+    "L_Knee": 4,
+    "L_Ankle": 7,
+    "L_Foot": 10,
+    "R_Hip": 2,
+    "R_Knee": 5,
+    "R_Ankle": 8,
+    "R_Foot": 11,
+    "Spine1": 3,
+    "Spine2": 6,
+    "Spine3": 9,
+    "Neck": 12,
+    "Head": 15,
+    "L_Collar": 13,
+    "L_Shoulder": 16,
+    "L_Elbow": 18,
+    "L_Wrist": 20,
+    "L_Hand": 22,
+    "R_Collar": 14,
+    "R_Shoulder": 17,
+    "R_Elbow": 19,
+    "R_Wrist": 21,
+    "R_Hand": 23,
 }
 
-FOOT_IDX = [SMPL_JOINTS['L_Ankle'], SMPL_JOINTS['R_Ankle'], SMPL_JOINTS['L_Foot'], SMPL_JOINTS['R_Foot']]
+FOOT_IDX = [
+    SMPL_JOINTS["L_Ankle"],
+    SMPL_JOINTS["R_Ankle"],
+    SMPL_JOINTS["L_Foot"],
+    SMPL_JOINTS["R_Foot"],
+]
 
-CONTACTS_IDX = [SMPL_JOINTS['L_Ankle'], SMPL_JOINTS['R_Ankle'],
-                SMPL_JOINTS['L_Foot'], SMPL_JOINTS['R_Foot'],
-                SMPL_JOINTS['L_Wrist'], SMPL_JOINTS['R_Wrist'],
-                SMPL_JOINTS['L_Knee'], SMPL_JOINTS['R_Knee']]
+CONTACTS_IDX = [
+    SMPL_JOINTS["L_Ankle"],
+    SMPL_JOINTS["R_Ankle"],
+    SMPL_JOINTS["L_Foot"],
+    SMPL_JOINTS["R_Foot"],
+    SMPL_JOINTS["L_Wrist"],
+    SMPL_JOINTS["R_Wrist"],
+    SMPL_JOINTS["L_Knee"],
+    SMPL_JOINTS["R_Knee"],
+]
 
 
 def align_joints(tensor, smpl_to_bvh=True):
@@ -103,7 +132,7 @@ def compute_orient_angle(matrix, traj):
     return cos
 
 
-def compute_trajectory(velocity, up, origin, dt, up_axis='z'):
+def compute_trajectory(velocity, up, origin, dt, up_axis="z"):
     """
     Args:
         velocity: (B, T, 3)
@@ -115,9 +144,9 @@ def compute_trajectory(velocity, up, origin, dt, up_axis='z'):
         trajectory: (B, T, 3)
     """
     ordermap = {
-        'x': 0,
-        'y': 1,
-        'z': 2,
+        "x": 0,
+        "y": 1,
+        "z": 2,
     }
     v_axis = [x for x in ordermap.values() if x != ordermap[up_axis]]
 
@@ -125,15 +154,19 @@ def compute_trajectory(velocity, up, origin, dt, up_axis='z'):
     trajectory = origin.repeat(1, up.shape[1], 1)  # (B, 1, 3) => (B, T, 3)
 
     for t in range(1, up.shape[1]):
-        trajectory[:, t, v_axis[0]] = trajectory[:, t - 1, v_axis[0]] + velocity[:, t - 1, v_axis[0]] * dt
-        trajectory[:, t, v_axis[1]] = trajectory[:, t - 1, v_axis[1]] + velocity[:, t - 1, v_axis[1]] * dt
+        trajectory[:, t, v_axis[0]] = (
+            trajectory[:, t - 1, v_axis[0]] + velocity[:, t - 1, v_axis[0]] * dt
+        )
+        trajectory[:, t, v_axis[1]] = (
+            trajectory[:, t - 1, v_axis[1]] + velocity[:, t - 1, v_axis[1]] * dt
+        )
 
     trajectory[:, :, ordermap[up_axis]] = up
 
     return trajectory
 
 
-def build_canonical_frame(forward, up_axis='z'):
+def build_canonical_frame(forward, up_axis="z"):
     """
     Args:
         forward: (..., 3)
@@ -141,11 +174,11 @@ def build_canonical_frame(forward, up_axis='z'):
     Returns:
         frame: (..., 3, 3)
     """
-    forward[..., 'xyz'.index(up_axis)] = 0
+    forward[..., "xyz".index(up_axis)] = 0
     forward = F.normalize(forward, dim=-1)  # normalized forward vector
 
     up = torch.zeros_like(forward)
-    up[..., 'xyz'.index(up_axis)] = 1  # normalized up vector
+    up[..., "xyz".index(up_axis)] = 1  # normalized up vector
     right = torch.cross(up, forward)
     frame = torch.stack((right, up, forward), dim=-1)  # canonical frame
 
@@ -153,13 +186,13 @@ def build_canonical_frame(forward, up_axis='z'):
 
 
 def estimate_linear_velocity(data_seq, dt):
-    '''
+    """
     Given some batched data sequences of T timesteps in the shape (B, T, ...), estimates
     the velocity for the middle T-2 steps using a second order central difference scheme.
     The first and last frames are with forward and backward first-order
     differences, respectively
     - h : step size
-    '''
+    """
     # first steps is forward diff (t+1 - t) / dt
     init_vel = (data_seq[:, 1:2] - data_seq[:, :1]) / dt
     # middle steps are second order (t+1 - t-1) / 2dt
@@ -172,10 +205,10 @@ def estimate_linear_velocity(data_seq, dt):
 
 
 def estimate_angular_velocity(rot_seq, dt):
-    '''
+    """
     Given a batch of sequences of T rotation matrices, estimates angular velocity at T-2 steps.
     Input sequence should be of shape (B, T, ..., 3, 3)
-    '''
+    """
     # see https://en.wikipedia.org/wiki/Angular_velocity#Calculation_from_the_orientation_matrix
     dRdt = estimate_linear_velocity(rot_seq, dt)
     R = rot_seq
@@ -218,7 +251,9 @@ def denormalize(tensor, mean, std):
     return tensor * std + mean
 
 
-def export_bvh_animation(rotations, positions, offsets, parents, output_dir, prefix, joint_names, fps):
+def export_bvh_animation(
+    rotations, positions, offsets, parents, output_dir, prefix, joint_names, fps
+):
     """
     Args:
         rotations: quaternions of the shape (B, T, J, 4)
@@ -229,21 +264,42 @@ def export_bvh_animation(rotations, positions, offsets, parents, output_dir, pre
         rotation = align_joints(rotations[i])
         position = positions[i]
         position = position.unsqueeze(1)
-        anim = Animation(Quaternions(c2c(rotation)), c2c(position), None, offsets=offsets, parents=parents)
-        BVH.save(os.path.join(output_dir, f'{prefix}_{i}.bvh'), anim, names=joint_names, frametime=1 / fps)
+        anim = Animation(
+            Quaternions(c2c(rotation)),
+            c2c(position),
+            None,
+            offsets=offsets,
+            parents=parents,
+        )
+        BVH.save(
+            os.path.join(output_dir, f"{prefix}_{i}.bvh"),
+            anim,
+            names=joint_names,
+            frametime=1 / fps,
+        )
 
 
 def export_ply_trajectory(points, color, ply_fname):
     v = []
     for p in points:
         v += [(p[0], p[1], p[2], color[0], color[1], color[2])]
-    v = np.array(v, dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4'), ('red', 'u1'), ('green', 'u1'), ('blue', 'u1')])
-    el_v = plyfile.PlyElement.describe(v, 'vertex')
+    v = np.array(
+        v,
+        dtype=[
+            ("x", "f4"),
+            ("y", "f4"),
+            ("z", "f4"),
+            ("red", "u1"),
+            ("green", "u1"),
+            ("blue", "u1"),
+        ],
+    )
+    el_v = plyfile.PlyElement.describe(v, "vertex")
 
-    e = np.empty(len(points) - 1, dtype=[('vertex1', 'i4'), ('vertex2', 'i4')])
-    edge_data = np.array([[i, i + 1] for i in range(len(points) - 1)], dtype='i4')
-    e['vertex1'] = edge_data[:, 0]
-    e['vertex2'] = edge_data[:, 1]
-    el_e = plyfile.PlyElement.describe(e, 'edge')
+    e = np.empty(len(points) - 1, dtype=[("vertex1", "i4"), ("vertex2", "i4")])
+    edge_data = np.array([[i, i + 1] for i in range(len(points) - 1)], dtype="i4")
+    e["vertex1"] = edge_data[:, 0]
+    e["vertex2"] = edge_data[:, 1]
+    el_e = plyfile.PlyElement.describe(e, "edge")
 
     plyfile.PlyData([el_v, el_e], text=True).write(ply_fname)

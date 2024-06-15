@@ -65,21 +65,24 @@ def compute_error_verts(pred_verts, target_verts=None, target_theta=None):
     if target_verts is None:
         from lib.models.smpl import SMPL_MODEL_DIR
         from lib.models.smpl import SMPL
-        device = 'cpu'
+
+        device = "cpu"
         smpl = SMPL(
             SMPL_MODEL_DIR,
-            batch_size=1, # target_theta.shape[0],
+            batch_size=1,  # target_theta.shape[0],
         ).to(device)
 
-        betas = torch.from_numpy(target_theta[:,75:]).to(device)
-        pose = torch.from_numpy(target_theta[:,3:75]).to(device)
+        betas = torch.from_numpy(target_theta[:, 75:]).to(device)
+        pose = torch.from_numpy(target_theta[:, 3:75]).to(device)
 
         target_verts = []
         b_ = torch.split(betas, 5000)
         p_ = torch.split(pose, 5000)
 
-        for b,p in zip(b_,p_):
-            output = smpl(betas=b, body_pose=p[:, 3:], global_orient=p[:, :3], pose2rot=True)
+        for b, p in zip(b_, p_):
+            output = smpl(
+                betas=b, body_pose=p[:, 3:], global_orient=p[:, :3], pose2rot=True
+            )
             target_verts.append(output.vertices.detach().cpu().numpy())
 
         target_verts = np.concatenate(target_verts, axis=0)
@@ -90,18 +93,18 @@ def compute_error_verts(pred_verts, target_verts=None, target_theta=None):
 
 
 def compute_similarity_transform(S1, S2):
-    '''
+    """
     Computes a similarity transform (sR, t) that takes
     a set of 3D points S1 (3 x N) closest to a set of 3D points S2,
     where R is an 3x3 rotation matrix, t 3x1 translation, s scale.
     i.e. solves the orthogonal Procrutes problem.
-    '''
+    """
     transposed = False
     if S1.shape[0] != 3 and S1.shape[0] != 2:
         S1 = S1.T
         S2 = S2.T
         transposed = True
-    assert(S2.shape[1] == S1.shape[1])
+    assert S2.shape[1] == S1.shape[1]
 
     # 1. Remove mean.
     mu1 = S1.mean(axis=1, keepdims=True)
@@ -129,10 +132,10 @@ def compute_similarity_transform(S1, S2):
     scale = np.trace(R.dot(K)) / var1
 
     # 6. Recover translation.
-    t = mu2 - scale*(R.dot(mu1))
+    t = mu2 - scale * (R.dot(mu1))
 
     # 7. Error:
-    S1_hat = scale*R.dot(S1) + t
+    S1_hat = scale * R.dot(S1) + t
 
     if transposed:
         S1_hat = S1_hat.T
@@ -141,18 +144,18 @@ def compute_similarity_transform(S1, S2):
 
 
 def compute_similarity_transform_torch(S1, S2):
-    '''
+    """
     Computes a similarity transform (sR, t) that takes
     a set of 3D points S1 (3 x N) closest to a set of 3D points S2,
     where R is an 3x3 rotation matrix, t 3x1 translation, s scale.
     i.e. solves the orthogonal Procrutes problem.
-    '''
+    """
     transposed = False
     if S1.shape[0] != 3 and S1.shape[0] != 2:
         S1 = S1.T
         S2 = S2.T
         transposed = True
-    assert (S2.shape[1] == S1.shape[1])
+    assert S2.shape[1] == S1.shape[1]
 
     # 1. Remove mean.
     mu1 = S1.mean(axis=1, keepdims=True)
@@ -163,7 +166,7 @@ def compute_similarity_transform_torch(S1, S2):
     # print('X1', X1.shape)
 
     # 2. Compute variance of X1 used for scale.
-    var1 = torch.sum(X1 ** 2)
+    var1 = torch.sum(X1**2)
 
     # print('var', var1.shape)
 
@@ -199,18 +202,18 @@ def compute_similarity_transform_torch(S1, S2):
 
 
 def batch_compute_similarity_transform_torch(S1, S2):
-    '''
+    """
     Computes a similarity transform (sR, t) that takes
     a set of 3D points S1 (3 x N) closest to a set of 3D points S2,
     where R is an 3x3 rotation matrix, t 3x1 translation, s scale.
     i.e. solves the orthogonal Procrutes problem.
-    '''
+    """
     transposed = False
     if S1.shape[0] != 3 and S1.shape[0] != 2:
-        S1 = S1.permute(0,2,1)
-        S2 = S2.permute(0,2,1)
+        S1 = S1.permute(0, 2, 1)
+        S2 = S2.permute(0, 2, 1)
         transposed = True
-    assert(S2.shape[1] == S1.shape[1])
+    assert S2.shape[1] == S1.shape[1]
 
     # 1. Remove mean.
     mu1 = S1.mean(axis=-1, keepdims=True)
@@ -223,7 +226,7 @@ def batch_compute_similarity_transform_torch(S1, S2):
     var1 = torch.sum(X1**2, dim=1).sum(dim=1)
 
     # 3. The outer product of X1 and X2.
-    K = X1.bmm(X2.permute(0,2,1))
+    K = X1.bmm(X2.permute(0, 2, 1))
 
     # 4. Solution that Maximizes trace(R'K) is R=U*V', where U, V are
     # singular vectors of K.
@@ -231,11 +234,11 @@ def batch_compute_similarity_transform_torch(S1, S2):
 
     # Construct Z that fixes the orientation of R to get det(R)=1.
     Z = torch.eye(U.shape[1], device=S1.device).unsqueeze(0)
-    Z = Z.repeat(U.shape[0],1,1)
-    Z[:,-1, -1] *= torch.sign(torch.det(U.bmm(V.permute(0,2,1))))
+    Z = Z.repeat(U.shape[0], 1, 1)
+    Z[:, -1, -1] *= torch.sign(torch.det(U.bmm(V.permute(0, 2, 1))))
 
     # Construct R.
-    R = V.bmm(Z.bmm(U.permute(0,2,1)))
+    R = V.bmm(Z.bmm(U.permute(0, 2, 1)))
 
     # 5. Recover scale.
     scale = torch.cat([torch.trace(x).unsqueeze(0) for x in R.bmm(K)]) / var1
@@ -247,7 +250,7 @@ def batch_compute_similarity_transform_torch(S1, S2):
     S1_hat = scale.unsqueeze(-1).unsqueeze(-1) * R.bmm(S1) + t
 
     if transposed:
-        S1_hat = S1_hat.permute(0,2,1)
+        S1_hat = S1_hat.permute(0, 2, 1)
 
     return S1_hat
 
@@ -281,12 +284,12 @@ def compute_errors(gt3ds, preds):
         gt3d = align_by_pelvis(gt3d)
         pred3d = align_by_pelvis(pred)
 
-        joint_error = np.sqrt(np.sum((gt3d - pred3d)**2, axis=1))
+        joint_error = np.sqrt(np.sum((gt3d - pred3d) ** 2, axis=1))
         errors.append(np.mean(joint_error))
 
         # Get PA error.
         pred3d_sym = compute_similarity_transform(pred3d, gt3d)
-        pa_error = np.sqrt(np.sum((gt3d - pred3d_sym)**2, axis=1))
+        pa_error = np.sqrt(np.sum((gt3d - pred3d_sym) ** 2, axis=1))
         errors_pa.append(np.mean(pa_error))
 
     return errors, errors_pa
@@ -301,17 +304,18 @@ def batch_align_by_pelvis(data_list, pelvis_idxs):
     """
 
     pred_j3d, target_j3d, pred_verts, target_verts = data_list
-    
+
     pred_pelvis = pred_j3d[:, pelvis_idxs].mean(dim=1, keepdims=True).clone()
     target_pelvis = target_j3d[:, pelvis_idxs].mean(dim=1, keepdims=True).clone()
-    
+
     # Align to the pelvis
     pred_j3d = pred_j3d - pred_pelvis
     target_j3d = target_j3d - target_pelvis
     pred_verts = pred_verts - pred_pelvis
     target_verts = target_verts - target_pelvis
-    
+
     return (pred_j3d, target_j3d, pred_verts, target_verts)
+
 
 def compute_jpe(S1, S2):
     return torch.sqrt(((S1 - S2) ** 2).sum(dim=-1)).mean(dim=-1).numpy()
