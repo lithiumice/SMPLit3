@@ -353,9 +353,8 @@ class MDM(nn.Module):
             self.latent_dim, self.sequence_pos_encoder
         )
 
-        #############
         # style condition
-        self.use_pae_enc = "paeStyle" in self.args.in_type
+        self.use_pae_enc = self.args.use_pae_enc
         if self.use_pae_enc:
             fps = 20
             window = 2.0
@@ -372,7 +371,7 @@ class MDM(nn.Module):
                 window=window,
             )
 
-        self.use_gru_enc = "gruStyle" in self.args.in_type
+        self.use_gru_enc = self.args.use_gru_enc
         if self.use_gru_enc:
             self.pae_network = nn.GRU(
                 input_channels,
@@ -382,37 +381,29 @@ class MDM(nn.Module):
             )
             self.pae2latent_fc = nn.Linear(input_channels, self.latent_dim)
 
-        self.use_onehot_style = "onehot" in self.args.in_type
+        self.use_onehot_style = self.args.use_onehot_style
         if self.use_onehot_style:
             self.style_onehot_fc = nn.Linear(100, self.latent_dim)
 
-        self.use_motion_clip = "motionclip" in self.args.in_type
+        self.use_motion_clip = self.args.use_motion_clip
+        self.use_motion_clip_pre_compute = self.args.use_motion_clip_pre_compute
         if self.use_motion_clip:
-            if not "preCompute" in self.args.in_type:
+            if not self.use_motion_clip_pre_compute:
                 from data_loaders.humanml.data.dataset import get_motionclip_model
 
                 self.motoin_clip_model = get_motionclip_model()
             self.motion_clip_emb_fc = nn.Linear(self.latent_dim, self.latent_dim)
 
-        self.ar_type = 1
-        self.use_past_motion = "pastMotion" in self.args.in_type
+        self.use_past_motion = self.args.use_past_motion
         if self.use_past_motion:
             self.past_motion_encoder = nn.Linear(
                 203, self.latent_dim
             )  # traj（11） + pose6d（21*3）
             self.ctrl_traj_encoder = nn.Linear(4, self.latent_dim)
         else:
-            self.ctrl_traj_encoder = nn.Linear(5, self.latent_dim)
+            self.ctrl_traj_encoder = nn.Linear(4, self.latent_dim)
 
-        # import ipdb;ipdb.set_trace()
-        # if self.args.use_gan:
-
-        self.down_rate = 1
-        if "simpleDownsampleCtrl" in self.args.in_type:
-            self.down_rate = 2  # -》10fps
-            if "downRate4" in self.args.in_type:
-                self.down_rate = 4  # -》5fps
-        #############
+        self.down_rate = self.args.down_rate
 
         self.output_process = OutputProcess(
             self.data_rep, self.input_feats, self.latent_dim, self.njoints, self.nfeats
@@ -519,7 +510,7 @@ class MDM(nn.Module):
         if self.arch == "trans_enc":
             if self.use_past_motion:
                 tmp_cond = y["past_motion"].to(x.device).permute(3, 2, 0, 1)[:, 0, :, :]
-                if "useCFG" in self.args.in_type:
+                if self.args.use_cfg:
                     tmp_cond = self.mask_cond(tmp_cond, force_mask=force_mask)
                 past_motion_emb = self.past_motion_encoder(tmp_cond)
 
@@ -527,7 +518,7 @@ class MDM(nn.Module):
             # y['example_motoin']: [bs,x,1,T]
             if self.use_motion_clip:
                 # 60 frame, fps 30, 2 seconds
-                if "preCompute" in self.args.in_type:
+                if self.use_motion_clip_pre_compute:
                     example_motoin_embedding = (
                         y["example_motoin"].to(x.device).squeeze(2).unsqueeze(0)
                     )
@@ -585,7 +576,7 @@ class MDM(nn.Module):
 
             xseq = torch.cat((ctrl_traj_emb, emb, x), axis=0)  # [xx, bs, 512]
 
-            if not "noStyle" in self.args.in_type:
+            if not self.args.use_no_style:
                 xseq = torch.cat((example_motoin_embedding, xseq), axis=0)
 
             if self.use_past_motion:
@@ -594,9 +585,9 @@ class MDM(nn.Module):
             # import ipdb;ipdb.set_trace()
             ctrl_emb_t = self.inp_len // self.down_rate
             if self.use_past_motion:
-                ctrl_emb_t += self.args.pastMotion_len
+                ctrl_emb_t += self.args.p_len
 
-            if not "noStyle" in self.args.in_type:
+            if not self.args.use_no_style:
                 style_dim = 1
             else:
                 style_dim = 0

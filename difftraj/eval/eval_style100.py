@@ -1,35 +1,6 @@
 from collections import OrderedDict
-
-import sys
-
-sys.path.insert(0, "/apdcephfs/private_wallyliang/PLANT/difftraj")
 from diffusion import logger
-from utils import dist_util
-from utils.parser_util import evaluation_parser
-from utils.fixseed import fixseed
-
-from data_loaders.humanml.motion_loaders.model_motion_loaders import (
-    get_mdm_loader,
-)
-from data_loaders.humanml.motion_loaders.comp_v6_model_dataset import (
-    TamingGeneratedDataset,
-)
-from torch.utils.data import DataLoader, Dataset
-
-from data_loaders.humanml.utils.metrics import *
-from data_loaders.humanml.scripts.motion_process import *
-from data_loaders.humanml.utils.utils import *
-from data_loaders.get_data import get_dataset_loader
-
-
-from model.mdm_taming_style import MDM
-from data_loaders.get_data import get_model_args, collate
-from utils.model_util import create_gaussian_diffusion
-from model.cfg_sampler import ClassifierFreeSampleModel
-from utils.model_util import create_model_and_diffusion, load_model_wo_clip
 import torch
-
-torch.multiprocessing.set_sharing_strategy("file_system")
 import joblib
 from datetime import datetime
 from eval.smpl_utils import AnyRep2SMPLjoints
@@ -37,32 +8,40 @@ from copy import deepcopy
 from easydict import EasyDict
 import pandas as pd
 from tabulate import tabulate
-
-pd.options.display.float_format = "{:.4f}".format
+from tqdm import tqdm
 from glob import glob
 import json
-
 import sys
 
-sys.path.append("/root/apdcephfs/private_wallyliang/PLANT/text-to-motion")
-from networks.modules import *
-from tqdm import tqdm
+from utils import dist_util
+from utils.parser_util import evaluation_parser
+from utils.fixseed import fixseed
+from model.mdm_taming_style import MDM
+from utils.model_util import create_gaussian_diffusion
+from model.cfg_sampler import ClassifierFreeSampleModel
+from utils.model_util import load_model_wo_clip
+
+
+from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
+from data_loaders.humanml.utils.metrics import *
+from data_loaders.humanml.scripts.motion_process import *
+from data_loaders.humanml.utils.utils import *
+from data_loaders.humanml.motion_loaders.comp_v6_model_dataset import (
+    TamingGeneratedDataset,
+)
+from data_loaders.get_data import get_model_args, collate, get_dataset_loader
 
+from eval.t2m.networks.modules import (
+    StylePredictorFromRawPose,
+    MovementConvEncoder2,
+    MovementConvDecoder2,
+    MovementConvEncoder3,
+    MovementConvDecoder3,
+)
 
-split = "test"
-dim_pose = 203
-persist_gt_emb = 1
-eval_joints_metrics = 0
-device = dist_util.dev()
-opt = EasyDict()
-fid_type = "FID"
-gt_data_type = "style100Data"
-use_standalone_style_pred = 0
-opt.infer_step = 2
-ae_std = None
-ae_mean = None
-persist_gt_emb_path = None
+torch.multiprocessing.set_sharing_strategy("file_system")
+pd.options.display.float_format = "{:.4f}".format
 
 
 # for 100 styles evaluation
@@ -100,99 +79,112 @@ def get_taming_loader(
     return motion_loader
 
 
-def get_eval_wrapper():
-    global ae_std
-    global ae_mean
-    # <===============================
-    if use_standalone_style_pred:
-        eval_wrapper = None
+# # FGD AE, window size 24
+# ckpt_file_path = 't2m_checkpoints/style100_AE_FMD_win60_fps30+latest.tar'
+
+# # FID AE triplet loss, window size 24
+# ckpt_file_path = 't2m_checkpoints/style100_AE_FID_triplet_win60_fps30+latest.tar'
+
+# FID AE triplet loss, window size 32
+# opt.window_size = 32
+# ckpt_file_path = 't2m_checkpoints/style100_AE_FID_triplet_win32_fps30+latest.tar'
+
+
+class eval_agent:
+    def init_style_pred(self, t2m_opt, dim_pose, device, style_predictor_model_path):
         style_predictor = StylePredictorFromRawPose(
-            opt, dim_pose, 256, 256, latent_dim=512, classes_num=100
+            t2m_opt, dim_pose, 256, 256, latent_dim=512, classes_num=100
         ).to(device)
+        # t2m_checkpoints/style_predictor_from_motion.pt
         style_predictor.load_state_dict(
             torch.load(
-                "/root/apdcephfs/private_wallyliang/PLANT/text-to-motion/checkpoints/style100/style_predictor_from_motion.pt",
+                style_predictor_model_path,
                 map_location=device,
             )["style_predictor"]
         )
         style_predictor.eval()
-    else:
-        if 0:
-            # <===============================
-            if fid_type == "FMD":
-                # FGD AE, window size 24
-                opt.window_size = 24
-                movement_enc = MovementConvEncoder2(dim_pose, 256, 256)
-                movement_dec = MovementConvDecoder2(256, 256, dim_pose)
-                ckpt_file_path = "/root/apdcephfs/private_wallyliang/PLANT/text-to-motion/checkpoints/style100/style100_AE_FMD_noStylePred/model/latest.tar"
-            elif fid_type == "FID":
-                # FID AE triplet loss, window size 24
-                opt.use_vae = False
-                opt.window_size = 24
-                ckpt_file_path = "/root/apdcephfs/private_wallyliang/PLANT/text-to-motion/checkpoints/style100/style100_triplet_win24_FID_AE/model/latest.tar"
-                movement_enc = MovementConvEncoder3(opt, dim_pose, 256, 256)
-                movement_dec = MovementConvDecoder3(opt, 256, 256, dim_pose)
-            elif fid_type == "StyleVAE":
-                # FID, VAE with style predict, window size 24
-                opt.use_vae = True
-                opt.window_size = 24
-                ckpt_file_path = "/root/apdcephfs/private_wallyliang/PLANT/text-to-motion/checkpoints/style100/style100_VAE_tripletLoss_stylePred/model/latest.tar"
-                movement_enc = MovementConvEncoder3(opt, dim_pose, 256, 256)
-                movement_dec = MovementConvDecoder3(opt, 256, 256, dim_pose)
 
-            tmp = os.path.abspath(f"{ckpt_file_path}/../..")
-            tmp = glob(f"{tmp}/*_train_mean_std.npz")
-            load_con = np.load(tmp[0])
-            ae_mean = torch.from_numpy(load_con["ae_mean"]).cpu()
-            ae_std = torch.from_numpy(load_con["ae_std"]).cpu()
+    def init_fmd1(self):
+        # FGD AE, window size 24
+        dim_pose = 203
+        opt = EasyDict()
+        opt.window_size = 24
+        movement_enc = MovementConvEncoder2(dim_pose, 256, 256)
+        movement_dec = MovementConvDecoder2(256, 256, dim_pose)
+        ckpt_file_path = "t2m_checkpoints/style100_AE_FMD_noStylePred+latest.tar"
 
-        else:
-            if fid_type == "FMD":
-                # # FGD AE, window size 24
-                # ckpt_file_path = '/root/apdcephfs/private_wallyliang/PLANT/text-to-motion/checkpoints/style100/style100_AE_FMD_win60_fps30/model/latest.tar'
+    def init_fid1(self):
+        # FID AE triplet loss, window size 24
+        dim_pose = 203
+        opt = EasyDict()
+        opt.use_vae = False
+        opt.window_size = 24
+        ckpt_file_path = "t2m_checkpoints/style100_triplet_win24_FID_AE+latest.tar"
+        movement_enc = MovementConvEncoder3(opt, dim_pose, 256, 256)
+        movement_dec = MovementConvDecoder3(opt, 256, 256, dim_pose)
 
-                # FGD AE, window size 24
-                ae_std = None
-                ae_mean = None
-                opt.use_vae = False
-                opt.window_size = 60
-                ckpt_file_path = "/root/apdcephfs/private_wallyliang/PLANT/text-to-motion/checkpoints/style100/style100_AE_FMD_win60_fps30/model/latest.tar"
-                movement_enc = MovementConvEncoder3(opt, dim_pose, 256, 256)
-                movement_dec = MovementConvDecoder3(opt, 256, 256, dim_pose)
-            elif fid_type == "FID":
-                # # FID AE triplet loss, window size 24
-                # ckpt_file_path = '/root/apdcephfs/private_wallyliang/PLANT/text-to-motion/checkpoints/style100/style100_AE_FID_triplet_win60_fps30/model/latest.tar'
+    def init_style_vae(self):
+        # FID, VAE with style predict, window size 24
+        dim_pose = 203
+        opt = EasyDict()
+        opt.use_vae = True
+        opt.window_size = 24
+        ckpt_file_path = "t2m_checkpoints/style100_VAE_tripletLoss_stylePred+latest.tar"
+        movement_enc = MovementConvEncoder3(opt, dim_pose, 256, 256)
+        movement_dec = MovementConvDecoder3(opt, 256, 256, dim_pose)
 
-                # FID AE triplet loss, window size 24
-                # opt.window_size = 32
-                # ckpt_file_path = '/root/apdcephfs/private_wallyliang/PLANT/text-to-motion/checkpoints/style100/style100_AE_FID_triplet_win32_fps30/model/latest.tar'
+    def init_fgd(self):
+        # FGD AE, window size 24
+        dim_pose = 203
+        opt = EasyDict()
+        opt.use_vae = False
+        opt.window_size = 60
+        ckpt_file_path = "t2m_checkpoints/style100_AE_FMD_win60_fps30+latest.tar"
+        movement_enc = MovementConvEncoder3(opt, dim_pose, 256, 256)
+        movement_dec = MovementConvDecoder3(opt, 256, 256, dim_pose)
 
-                ae_std = None
-                ae_mean = None
-                opt.use_vae = False
-                opt.window_size = 24
-                ckpt_file_path = "/root/apdcephfs/private_wallyliang/PLANT/text-to-motion/checkpoints/style100/style100_AE_FID_triplet_win24_fps30/model/latest.tar"
-                movement_enc = MovementConvEncoder3(opt, dim_pose, 256, 256)
-                movement_dec = MovementConvDecoder3(opt, 256, 256, dim_pose)
-
+    def init_fid(self, device):
+        dim_pose = 203
+        opt = EasyDict()
+        opt.use_vae = False
+        opt.window_size = 24
+        ckpt_file_path = (
+            "style100/style100_triplet_win24_FID_AE/model/E0270.tar"
+            # "t2m_checkpoints/style100_AE_FID_triplet_win24_fps30+latest.tar"
+        )
         print(f"load from {ckpt_file_path}")
         checkpoint = torch.load(ckpt_file_path, map_location=device)
         movement_enc.load_state_dict(checkpoint["movement_enc"])
         movement_dec.load_state_dict(checkpoint["movement_dec"])
+        movement_enc = MovementConvEncoder3(opt, dim_pose, 256, 256)
+        movement_dec = MovementConvDecoder3(opt, 256, 256, dim_pose)
+        movement_enc = movement_enc.to(device)
+        movement_enc.eval()
+        movement_dec = movement_dec.to(device)
+        movement_dec.eval()
 
-        eval_wrapper = EasyDict()
-        eval_wrapper.movement_encoder = movement_enc
-        eval_wrapper.movement_decoder = movement_dec
-        eval_wrapper.movement_encoder.to(device)
-        eval_wrapper.movement_encoder.eval()
-        eval_wrapper.movement_decoder.to(device)
-        eval_wrapper.movement_decoder.eval()
+        ckpts_root = os.path.abspath(f"{ckpt_file_path}/../..")
+        mean_std_path = glob(f"{ckpts_root}/*_train_mean_std.npz")
+        load_con = np.load(mean_std_path[0])
+        ae_mean = torch.from_numpy(load_con["ae_mean"]).cpu()
+        ae_std = torch.from_numpy(load_con["ae_std"]).cpu()
+        return movement_enc, movement_dec, ae_mean, ae_std
 
-        global persist_gt_emb_path
-        ae_ckpt_id = ckpt_file_path.split("/")[-3]
-        persist_gt_emb_path = f"/apdcephfs/share_1330077/wallyliang/eval_gt_{gt_data_type}_acit_{fid_type}_triplet_win{opt.window_size}_{ae_ckpt_id}_{eval_joints_metrics}.jpkl"
-        print(f"persist_gt_emb_path: {persist_gt_emb_path}")
-        return eval_wrapper
+    def __init__(
+        self,
+        t2m_opt,
+        ckpt_file_path,
+        dim_pose=203,
+        device="cuda",
+        use_standalone_style_pred=False,
+        style_predictor_model_path=None,
+    ) -> None:
+        self.use_standalone_style_pred = use_standalone_style_pred
+        movement_enc, movement_dec, ae_mean, ae_std = self.init_fid(device)
+        self.movement_enc = movement_enc
+        self.movement_dec = movement_dec
+        self.ae_mean = ae_mean
+        self.ae_std = ae_std
 
 
 def evaluation(
@@ -205,21 +197,24 @@ def evaluation(
     mm_num_times,
     run_mm=False,
 ):
-    global ae_std
-    global ae_mean
-    global persist_gt_emb_path
     gen_mean = torch.from_numpy(
         gt_loader.dataset.t2m_dataset.motoin_info_all_list_mean
     ).cpu()
     gen_std = torch.from_numpy(
         gt_loader.dataset.t2m_dataset.motoin_info_all_list_std
     ).cpu()
-    if ae_mean is None:
-        ae_mean = gen_mean
-    if ae_std is None:
-        ae_std = gen_std
 
     with open(log_file, "w") as f:
+
+        def print_mod(s):
+            print(s)
+            print(
+                s,
+                file=f,
+                flush=True,
+            )
+
+        print = print_mod
         metric_template = OrderedDict(
             {
                 "fid": OrderedDict({}),
@@ -238,11 +233,6 @@ def evaluation(
             print(
                 f"==================== Replication {replication} ===================="
             )
-            print(
-                f"==================== Replication {replication} ====================",
-                file=f,
-                flush=True,
-            )
             activation_dict = {}
             motion_loaders = {}
             motion_loaders["gt"] = gt_loader
@@ -258,7 +248,7 @@ def evaluation(
             ]
             if eval_joints_metrics:
                 save_keys.extend(["denorm_target_motion", "pred_joint"])
-            if use_standalone_style_pred:
+            if eval_wrapper.use_standalone_style_pred:
                 save_keys.extend(["acc_radio"])
             for motion_loader_name, motion_loader in motion_loaders.items():
                 all_motion_embeddings = []
@@ -270,13 +260,13 @@ def evaluation(
                 top_k_count = 0
                 print(f"motion_loader_name: {motion_loader_name}")
 
-                if motion_loader_name == "gt":
-                    if persist_gt_emb and os.path.exists(persist_gt_emb_path):
-                        content = joblib.load(persist_gt_emb_path)
-                        activation_dict["gt"] = content["gt_acit"]
-                        all_infos_dict["gt"] = content["gt_infos"]
-                        print(f"load gt emb from {persist_gt_emb_path}")
-                        continue
+                # if motion_loader_name == "gt":
+                #     if persist_gt_emb and os.path.exists(persist_gt_emb_path):
+                #         content = joblib.load(persist_gt_emb_path)
+                #         activation_dict["gt"] = content["gt_acit"]
+                #         all_infos_dict["gt"] = content["gt_infos"]
+                #         print(f"load gt emb from {persist_gt_emb_path}")
+                #         continue
 
                 with torch.no_grad():
                     for idx, batch in tqdm(enumerate(motion_loader)):
@@ -295,12 +285,14 @@ def evaluation(
 
                         # import ipdb;ipdb.set_trace()
                         denorm_target_motion = target_motion * gen_std + gen_mean
-                        ae_motions = (denorm_target_motion - ae_mean) / ae_std
+                        ae_motions = (
+                            denorm_target_motion - eval_wrapper.ae_mean
+                        ) / eval_wrapper.ae_std
                         ae_motions = ae_motions.cuda().float()
 
-                        if use_standalone_style_pred:
-                            motion_embeddings, pred_style_prob = style_predictor(
-                                ae_motions
+                        if eval_wrapper.use_standalone_style_pred:
+                            motion_embeddings, pred_style_prob = (
+                                eval_wrapper.style_predictor(ae_motions)
                             )
                             # import ipdb;ipdb.set_trace()
                             pred_style = torch.argmax(pred_style_prob, dim=1).cpu()
@@ -342,16 +334,16 @@ def evaluation(
                     )
                     activation_dict[motion_loader_name] = all_motion_embeddings
 
-            # save activation_dict['gt'] to file
-            if persist_gt_emb and not os.path.exists(persist_gt_emb_path):
-                joblib.dump(
-                    {
-                        "gt_acit": activation_dict["gt"],
-                        "gt_infos": all_infos_dict["gt"],
-                    },
-                    persist_gt_emb_path,
-                )
-                print(f"save gt acit to {persist_gt_emb_path}")
+            # # save activation_dict['gt'] to file
+            # if persist_gt_emb and not os.path.exists(persist_gt_emb_path):
+            #     joblib.dump(
+            #         {
+            #             "gt_acit": activation_dict["gt"],
+            #             "gt_infos": all_infos_dict["gt"],
+            #         },
+            #         persist_gt_emb_path,
+            #     )
+            #     print(f"save gt acit to {persist_gt_emb_path}")
 
             # import ipdb;ipdb.set_trace()
             if "vald" in activation_dict:
@@ -374,7 +366,6 @@ def evaluation(
                 # print(f'mu: {mu}')
                 fid = calculate_frechet_distance(gt_mu, gt_cov, mu, cov)
                 print(f"---> [{model_name}] FID: {fid:.4f}")
-                print(f"---> [{model_name}] FID: {fid:.4f}", file=file, flush=True)
                 # if not 'fid' in all_eval_dict.keys(): all_eval_dict['fid'] = {}
                 all_eval_dict["fid"][model_name] = fid
 
@@ -383,14 +374,9 @@ def evaluation(
                 diversity = calculate_diversity(motion_embeddings, diversity_times)
                 # eval_dict[model_name] = diversity
                 print(f"---> [{model_name}] Diversity: {diversity:.4f}")
-                print(
-                    f"---> [{model_name}] Diversity: {diversity:.4f}",
-                    file=file,
-                    flush=True,
-                )
                 all_eval_dict["diversity"][model_name] = diversity
 
-            if use_standalone_style_pred:
+            if eval_wrapper.use_standalone_style_pred:
                 # import ipdb;ipdb.set_trace()
                 for model_name, model_infos in all_infos_dict.items():
                     all_eval_dict["acc_radio"][model_name] = (
@@ -408,7 +394,6 @@ def evaluation(
                     accel = dist.mean()
                     line = f"---> [{model_name}] accel: {accel}"
                     print(line)
-                    print(line, file=f, flush=True)
                     all_eval_dict["accel"][model_name] = accel.item()
 
                     CONTACT_TOE_HEIGHT_THRESH = 0.04
@@ -450,7 +435,6 @@ def evaluation(
                     fs = s.mean()
                     line = f"---> [{model_name}] fs: {fs:.4f}"
                     print(line)
-                    print(line, file=f, flush=True)
                     all_eval_dict["fs"][model_name] = fs.item()
                     # import ipdb;ipdb.set_trace()
 
@@ -466,15 +450,11 @@ def evaluation(
                     o_err = orient_err.mean()
                     line = f"---> [{model_name}] t_err: {t_err}"
                     print(line)
-                    print(line, file=f, flush=True)
                     line = f"---> [{model_name}] o_err: {o_err}"
                     print(line)
-                    print(line, file=f, flush=True)
                     all_eval_dict["t_err"][model_name] = t_err.item()
                     all_eval_dict["o_err"][model_name] = o_err.item()
 
-            # import ipdb;ipdb.set_trace()
-            # import pprint; pprint.pprint(all_eval_dict)
             print(
                 f"==================== Replication {replication} ===================="
             )
@@ -492,7 +472,6 @@ def evaluation(
         conf_dict = {}
         for metric_name, metric_dict in all_metrics.items():
             print("========== %s Summary ==========" % metric_name)
-            print("========== %s Summary ==========" % metric_name, file=f, flush=True)
             for model_name, values in metric_dict.items():
 
                 def get_metric_statistics(values, replication_times):
@@ -511,11 +490,6 @@ def evaluation(
                     print(
                         f"---> [{model_name}] Mean: {mean:.4f} CInterval: {conf_interval:.4f}"
                     )
-                    print(
-                        f"---> [{model_name}] Mean: {mean:.4f} CInterval: {conf_interval:.4f}",
-                        file=f,
-                        flush=True,
-                    )
                 elif isinstance(mean, np.ndarray):
                     line = f"---> [{model_name}]"
                     for i in range(len(mean)):
@@ -525,70 +499,77 @@ def evaluation(
                             conf_interval[i],
                         )
                     print(line)
-                    print(line, file=f, flush=True)
 
         print(f"mean_dict: {mean_dict}")
         print(f"conf_dict: {conf_dict}")
-        # print(tabulate(pd.DataFrame(mean_dict), headers='keys', tablefmt='grid'))
+        print(tabulate(pd.DataFrame(mean_dict), headers='keys', tablefmt='grid'))
         return mean_dict, conf_dict
 
 
 if __name__ == "__main__":
+    split = "test"
+    device = dist_util.dev()
+    # opt.infer_step = 2
+
     args = evaluation_parser()
-    args.batch_size = 3200
-    args.dataset = "AMASS_GLAMR_taming_style"
     fixseed(args.seed)
-    eval_wrapper = get_eval_wrapper()
+
+    eval_wrapper = eval_agent()
     traj2joints = AnyRep2SMPLjoints()
+
     name = os.path.basename(os.path.dirname(args.model_path))
     niter = os.path.basename(args.model_path).replace("model", "").replace(".pt", "")
+
     log_file = os.path.join(
         os.path.dirname(args.model_path), "eval_humanml_{}_{}".format(name, niter)
     )
+
     if args.guidance_param != 1.0:
         log_file += f"_gscale{args.guidance_param}"
+
     args.eval_mode = "debug"
     log_file += f"_{args.eval_mode}"
     log_json = log_file + ".json"
     log_file += ".log"
+
     print(f"Will save to log file [{log_file}]")
     print(f"Eval mode [{args.eval_mode}]")
 
-    num_samples_limit = 1000
-    run_mm = False
-    mm_num_samples = 0
-    mm_num_repeats = 0
-    mm_num_times = 0
-    diversity_times = 300
-    replication_times = args.replication_times
-    eval_joints_metrics = args.eval_joints_metrics
-
-    # if args.eval_mode == 'debug':
-    #     num_samples_limit = 1000
-    #     run_mm = False
-    #     mm_num_samples = 0
-    #     mm_num_repeats = 0
-    #     mm_num_times = 0
-    #     diversity_times = 300
-    #     replication_times = 1  # about 3 Hrs
-    # elif args.eval_mode == 'wo_mm':
-    #     num_samples_limit = 1000
-    #     run_mm = False
-    #     mm_num_samples = 0
-    #     mm_num_repeats = 0
-    #     mm_num_times = 0
-    #     diversity_times = 300
-    #     replication_times = 20 # about 12 Hrs
-    # elif args.eval_mode == 'mm_short':
-    #     num_samples_limit = 1000
-    #     run_mm = True
-    #     mm_num_samples = 100
-    #     mm_num_repeats = 30
-    #     mm_num_times = 10
-    #     diversity_times = 300
-    #     replication_times = 5  # about 15 Hrs
-    # else:
-    #     raise ValueError()
+    if args.eval_mode == "debug":
+        num_samples_limit = 1000
+        run_mm = False
+        mm_num_samples = 0
+        mm_num_repeats = 0
+        mm_num_times = 0
+        diversity_times = 300
+        replication_times = args.replication_times
+        eval_joints_metrics = args.eval_joints_metrics
+    elif args.eval_mode == "debug2":
+        num_samples_limit = 1000
+        run_mm = False
+        mm_num_samples = 0
+        mm_num_repeats = 0
+        mm_num_times = 0
+        diversity_times = 300
+        replication_times = 1  # about 3 Hrs
+    elif args.eval_mode == "wo_mm":
+        num_samples_limit = 1000
+        run_mm = False
+        mm_num_samples = 0
+        mm_num_repeats = 0
+        mm_num_times = 0
+        diversity_times = 300
+        replication_times = 20  # about 12 Hrs
+    elif args.eval_mode == "mm_short":
+        num_samples_limit = 1000
+        run_mm = True
+        mm_num_samples = 100
+        mm_num_repeats = 30
+        mm_num_times = 10
+        diversity_times = 300
+        replication_times = 5  # about 15 Hrs
+    else:
+        raise ValueError()
 
     dist_util.setup_dist(args.device)
     logger.configure()

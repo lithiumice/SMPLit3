@@ -112,6 +112,20 @@ def add_diffusion_options(parser):
     group.add_argument("--f_len", default=20, type=int, help=".")
     group.add_argument("--add_emb", action="store_true", help="")
     group.add_argument("--use_old_model", action="store_true", help="")
+    group.add_argument("--train_fps", default=30, type=int)
+    group.add_argument("--down_rate", default=1, type=int)
+    group.add_argument("--normlize_ctrl_traj", action="store_true")
+    group.add_argument("--debug", action="store_true")
+
+    group.add_argument("--use_pae_enc", action="store_true")
+    group.add_argument("--use_gru_enc", action="store_true")
+    group.add_argument("--use_onehot_style", action="store_true")
+    group.add_argument("--use_motion_clip", action="store_true")
+    group.add_argument("--use_motion_clip_pre_compute", action="store_true")
+    group.add_argument("--use_past_motion", action="store_true")
+    group.add_argument("--use_no_style", action="store_true")
+    group.add_argument("--use_cfg", action="store_true")
+
 
 
 def add_model_options(parser):
@@ -166,7 +180,6 @@ def add_data_options(parser):
         type=str,
         help="Dataset name (choose from list).",
     )
-    # group.add_argument("--dataset", default='humanml', choices=['humanml', 'kit', 'humanact12', 'uestc','difftraj_dataloader'], type=str, help="Dataset name (choose from list).")
     group.add_argument(
         "--data_dir",
         default="",
@@ -426,19 +439,6 @@ def add_evaluation_options(parser):
     )
 
 
-def get_cond_mode(args):
-    if args.unconstrained:
-        cond_mode = "no_cond"
-    elif args.dataset in [
-        "kit",
-        "humanml",
-    ]:
-        cond_mode = "text"
-    elif args.dataset in ["difftraj_dataloader"]:
-        cond_mode = "local_pose"
-    else:
-        cond_mode = "action"
-    return cond_mode
 
 
 def train_args():
@@ -458,17 +458,6 @@ def generate_args():
     add_sampling_options(parser)
     add_generate_options(parser)
     args = parse_and_load_from_model(parser)
-    cond_mode = get_cond_mode(args)
-
-    if (args.input_text or args.text_prompt) and cond_mode != "text":
-        raise Exception(
-            "Arguments input_text and text_prompt should not be used for an action condition. Please use action_file or action_name."
-        )
-    elif (args.action_file or args.action_name) and cond_mode != "action":
-        raise Exception(
-            "Arguments action_file and action_name should not be used for a text condition. Please use input_text or text_prompt."
-        )
-
     return args
 
 

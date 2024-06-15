@@ -140,30 +140,23 @@ DiffTraj的训练只需要AMASS。（之前有尝试过加入100STYLES的数据�
 #### AMASS
 
 先将所有的amass的npz的路径缓存到txt文件：
+
 ```bash
 mkdir -p data
 AMASS_PATH=/apdcephfs_cq10/share_301996436/share_data/amass_raw
 find $AMASS_PATH -type f -name "*.npz" > data/amass_npzs_list.txt
-```
+# `cat data/amass_npzs_list.txt | wc -l` 可见有15805个npz。
 
-`cat data/amass_npzs_list.txt | wc -l` 可见有15805个npz。
-
-
-分割train和test：
-
-```bash
+# 分割train和test：
 SOURCE=data/amass_npzs_list.txt
 total_lines=$(wc -l $SOURCE | awk '{print $1}') # 计算文件的总行数
 train_lines=$((total_lines * 8 / 10)) # 计算训练集的行数（80%）
 head -n $train_lines $SOURCE > data/amass_train.txt # 使用head和tail命令分割文件
 tail -n +$(($train_lines + 1)) $SOURCE > data/amass_test.txt
-```
 
-`data/amass_train.txt`有1.2w个npz。
+# `data/amass_train.txt`有1.2w个npz。
 
-处理train：
-
-```bash
+# 处理train：
 # for train
 python process_dataset.py \
 --save_train_mean_std data/amass_mean_std_train.npz \
@@ -190,10 +183,45 @@ python process_dataset.py \
 处理完成会得到data目录下的amassDate_train.jpkl，这个文件会被用于训练的dataloader中加载。
 `amass_mean_std.npz`是用于数据的归一化，注意这个文件在训练和推理都用到，并需要保持一致，如果不一致会导致归一化出问题，出现比如滑步之类的问题。
 
+#### 100styles
+```bash
+mkdir -p data
+# DATA_PATH=/apdcephfs/share_1290939/shaolihuang/wallyliang_backup_files/PLANT_data/100styles_merge
+DATA_PATH=/apdcephfs_cq10/share_301996436/share_data/100styles_merge
+find $DATA_PATH -type f -name "*.npz" > data/100styles_npzs_list.txt
+
+SOURCE=data/100styles_npzs_list.txt
+total_lines=$(wc -l $SOURCE | awk '{print $1}') 
+train_lines=$((total_lines * 8 / 10)) 
+head -n $train_lines $SOURCE > data/100styles_train.txt 
+tail -n +$(($train_lines + 1)) $SOURCE > data/100styles_test.txt
+
+# for train
+python process_dataset.py \
+--save_train_mean_std data/100styles_mean_std_train.npz \
+--save_train_jpkl data/100styles_train.jpkl \
+--in_npz_list data/100styles_train.txt \
+--in_data_type 100styles \
+--save_data_fps 30 \
+--win_size 35 
+# we get 648 items for train.
+
+# for test
+python process_dataset.py \
+--save_train_mean_std data/100styles_mean_std_test.npz \
+--save_train_jpkl data/100styles_test.jpkl \
+--in_npz_list data/100styles_test.txt \
+--in_data_type 100styles \
+--save_data_fps 30 \
+--win_size 35 \
+--max_process_npz_num 30
+```
+
+
 ### 开始训练
 使用论文中的setting，目前只用到了单卡。
 ```bash
-python -m train.train_difftraj_diffpose \
+python -m train.train_main \
 --save_dir exps/difftraj_amass \
 --train_data_path data/amass_train.jpkl \
 --load_mean_path data/amass_mean_std_train.npz \
@@ -201,7 +229,7 @@ python -m train.train_difftraj_diffpose \
 --arch trans_enc \
 --batch_size 218 \
 --log_interval 5 \
---save_interval 25000 \
+--save_interval 5000 \
 --diffusion_steps 1000 \ # paper setting
 --seq_len 200 \
 --add_emb
@@ -239,30 +267,33 @@ find assets/diftraj_demo -name *.npz -print -exec sh -c \
 ```
 
 # LOCO
+## 训练
 这部分的motion  generation使用和DiffTraj一套代码，本质上都是diffusion，只有condition和output是不一样而已。
 
 在100 styles data上训练Motion generation
 ```bash
-# diffution step 8
 # onehot style control
-# past frame=15
-# predict frame=30
-# fps=30
-python -m train.train_taming_style \
---save_dir exps/loco_generation_exp_100styles\
---in_type pose_joints_onehot_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_100Styles_30fps \
---eval_during_training \
---batch_size 512 \
---log_interval 5 \
---save_interval 25000 \
---diffusion_steps 8 
+python -m train.train_main \
+--save_dir exps/loco_generation_exp_100styles \
+--train_data_path data/100styles_train.jpkl \
+--load_mean_path data/100styles_mean_std_train.npz \
+--dataset diffgen \
+--batch_size 128 \
+--log_interval 10 \
+--save_interval 5000 \
+--diffusion_steps 8 \
+--p_len 10 \
+--f_len 30 \
+--train_fps 30 \
+--use_onehot_style \
+--use_past_motion
+# --debug # add this if you want to debug
 ```
 
 在scrape data上训练Motion generation
 ```bash
-python -m train.train_cmdm_style \
+python -m train.train_main \
 --save_dir exps/loco_generation_fit_data \
---in_type pose_joints_onehot_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_cmdm_whamFitData_30fps \
 --eval_during_training \
 --batch_size 512 \
 --log_interval 5 \
@@ -273,10 +304,9 @@ python -m train.train_cmdm_style \
 
 如何finetune
 ```bash
-python -m train.train_cmdm_style \
+python -m train.train_main \
 --base_model exps/loco_generation_fit_data/model000250000.pt \ # 继承的base model weight
 --save_dir exps/loco_generation_exp3 \
---in_type pose_joints_onehot_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_cmdm_100Styles_30fps_finetune2 \
 --eval_during_training \
 --batch_size 512 \
 --log_interval 5 \
@@ -299,6 +329,14 @@ python -m sample.generate_style \
 --eval_cmdm_finetune \
 --infer_walk_speed 0.8 \
 --vis_save_dir output/loco_gen_infer
+```
+
+Evaluation:
+```bash
+python -m eval.eval_style100 \
+--model_path exps/loco_generation_fit_data/model000602605.pt \
+--dataset diffgen \
+--batchsize 3200
 ```
 
 # 训练WHAM

@@ -110,210 +110,132 @@ def plot_vectors(transl_xy, forward_vec, title, save_path="./test.png"):
     plt.close()
 
 
-# # <==================
-# # autoregressive generation with 100STYLE
-# class diffgen_dataset(data.Dataset):
-#     def __init__(self, split_file, args=None):
-#         self.args = args
-#         self.split_file = split_file
+style_onehot_save_path = os.path.join(
+    os.path.dirname(__file__), "../../../style_str_to_onehot.pt"
+)
 
-#         if 1:
-#             # 20 fps
-#             self.ex_fps = 20
-#             self.out_secs = 16 / self.ex_fps
-#             self.pastMotion_len = 5
-#         if "pastMotionLen15" in args.in_type:
-#             print("pastMotionLen15")
-#             self.ex_fps = 20
-#             self.out_secs = 15 / self.ex_fps
-#             self.pastMotion_len = 15
-#         if "pastMotionLen5" in args.in_type:
-#             print("pastMotionLen15")
-#             self.ex_fps = 20
-#             self.out_secs = 10 / self.ex_fps
-#             self.pastMotion_len = 5
-#         if "30fps" in args.in_type:
-#             self.ex_fps = 30
-#             self.out_secs = 20 / self.ex_fps
-#             self.pastMotion_len = 15
 
-#         self.inp_len = int(self.ex_fps * self.out_secs)
-#         self.win_size = self.pastMotion_len + self.inp_len
+def load_from_jpkl(train_data_path):
+    lengths = []
+    data = []
+    styles = []
+    ctrl_data = []
+    for file_path in train_data_path:
+        if os.path.exists(file_path):
+            print(f"loading {file_path}")
+            load_con = joblib.load(file_path)
+            lens = load_con["lengths"]
+            print(f"len: {len(lens)}")
+            lengths.extend(load_con["lengths"])
+            data.extend(load_con["data"])
+            styles.extend(load_con["styles"])
+            ctrl_data.extend(load_con["ctrl_data"])
+        else:
+            print(f"wrong file: {file_path}")
+    return lengths, data, styles, ctrl_data
 
-#         self.eval_mode = False
-#         if "test" in split_file and "window_size" in self.args:
-#             # /apdcephfs/share_1330077/wallyliang/taming_save/pose_joints_onehot_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj/dataloader_pose_joints_onehot_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_test.jpkl
-#             self.win_size = self.pastMotion_len + self.args.window_size
-#             self.eval_mode = True
+import ipdb
 
-#         print(f"split_file: {self.split_file}")
-#         print(f"self.ex_fps: {self.ex_fps}")
-#         print(f"self.out_secs: {self.out_secs}")
-#         print(f"self.inp_len: {self.inp_len}")
-#         print(f"self.win_size: {self.win_size}")
-#         print(f"args.in_type: {args.in_type}")
+class diffgen_dataset(data.Dataset):
+    """
+    autoregressive generation with 100STYLE
+    """
 
-#         id_list = []
-#         load_pred_process_jpks = {}
+    def __init__(self, split, args, **kwargs):
+        self.args = args
+        self.split = split
+        self.ex_fps = self.args.train_fps
+        self.pastMotion_len = self.args.p_len
+        self.inp_len = self.args.f_len
 
-#         # train_mean_std = '/apdcephfs/share_1330077/wallyliang/ar_diff_loco_gen_save/pose_joints_noStyle_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_whamFitData_30fps_3/dataloader_pose_joints_noStyle_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_whamFitData_30fps_3_train_mean_std.npz'
-#         train_mean_std = "/apdcephfs/share_1330077/wallyliang/ar_diff_loco_gen_save/pose_joints_onehot_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_cmdm_100Styles_30fps/dataloader_pose_joints_onehot_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_cmdm_100Styles_30fps_train_mean_std.npz"
-#         if "whamFitData" in args.in_type:
-#             load_pred_process_jpks["whamFitData"] = {
-#                 "train": "/apdcephfs/share_1330077/wallyliang/ar_diff_loco_gen_save/pose_joints_noStyle_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_whamFitData_30fps_3/dataloader_pose_joints_noStyle_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_whamFitData_30fps_3_train.jpkl",
-#                 "test": "/apdcephfs/share_1330077/wallyliang/ar_diff_loco_gen_save/pose_joints_noStyle_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_whamFitData_30fps_3/dataloader_pose_joints_noStyle_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_whamFitData_30fps_3_test.jpkl",
-#             }
-#             # find /apdcephfs/share_1330077/wallyliang/MOT_walk_videos_wham/ -name "*difTraj_raw.npz" | shuf > /apdcephfs/share_1330077/wallyliang/whamFitData_shuf_0224.txt
-#             # id_list += open('/apdcephfs/share_1330077/wallyliang/whamFitData_shuf_0224.txt','r').readlines()
-#             if "train" in split_file:
-#                 id_list += open(
-#                     "/apdcephfs/share_1330077/wallyliang/whamFitData_shuf_0224_train.txt",
-#                     "r",
-#                 ).readlines()
-#             elif "test" in split_file:
-#                 id_list += open(
-#                     "/apdcephfs/share_1330077/wallyliang/whamFitData_shuf_0224_test.txt",
-#                     "r",
-#                 ).readlines()
-#         if "100Styles" in args.in_type:
-#             load_pred_process_jpks["100Styles"] = {
-#                 "train": "/apdcephfs/share_1330077/wallyliang/ar_diff_loco_gen_save/pose_joints_onehot_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_cmdm_100Styles_30fps/dataloader_pose_joints_onehot_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_cmdm_100Styles_30fps_train.jpkl",
-#                 "test": "/apdcephfs/share_1330077/wallyliang/ar_diff_loco_gen_save/pose_joints_onehot_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_cmdm_100Styles_30fps/dataloader_pose_joints_onehot_simpleCtrl_diffusionSteps8_pastMotion_pastMotionLen15_egoTraj_cmdm_100Styles_30fps_test.jpkl",
-#             }
-#             # ls -d /root/apdcephfs/private_wallyliang/PLANT_data/100styles_merge/*.npz | shuf > /apdcephfs/share_1330077/wallyliang/onehundred_styles_smpl_npz_files_shuf.txt
-#             # id_list += open('/apdcephfs/share_1330077/wallyliang/onehundred_styles_smpl_npz_files_shuf.txt','r').readlines()
-#             if "train" in split_file:
-#                 id_list += open(
-#                     "/apdcephfs/share_1330077/wallyliang/onehundred_styles_smpl_npz_files_shuf_train.txt",
-#                     "r",
-#                 ).readlines()
-#             elif "test" in split_file:
-#                 id_list += open(
-#                     "/apdcephfs/share_1330077/wallyliang/onehundred_styles_smpl_npz_files_shuf_test.txt",
-#                     "r",
-#                 ).readlines()
-#             cut_frames_info = pandas.read_csv(
-#                 f"/root/apdcephfs/private_wallyliang/PLANT_data/100style_info/Frame_Cuts.csv"
-#             )
-#         if "imData" in args.in_type:
-#             train_mean_std = "/apdcephfs/share_1330077/wallyliang/ar_diff_loco_gen_save/dataloader_pts/imDate_0307_mean_std.npz"
-#             load_pred_process_jpks["imData"] = {
-#                 "train": "/apdcephfs/share_1330077/wallyliang/ar_diff_loco_gen_save/dataloader_pts/imDate_0307_train.jpkl",
-#             }
-#             # find /apdcephfs/share_1330077/wallyliang/walk_wham_0227_process/imitated -name "*.npz" > /apdcephfs/share_1330077/wallyliang/ar_diff_loco_gen_save/dataloader_pts/imDate_0307_train.txt
-#             id_list += open(
-#                 "/apdcephfs/share_1330077/wallyliang/ar_diff_loco_gen_save/dataloader_pts/imDate_0307_train.txt",
-#                 "r",
-#             ).readlines()
+        if "test" in split and "window_size" in self.args:
+            self.win_size = self.pastMotion_len + self.args.window_size
+            self.eval_mode = True
+        else:
+            self.win_size = self.pastMotion_len + self.inp_len
+            self.eval_mode = False
 
-#         self.lengths = []
-#         self.data = []
-#         self.styles = []
-#         self.ctrl_data = []
-#         for k, v in load_pred_process_jpks.items():
-#             file_path = v[split_file]
-#             print(f"loading dataloader {k}, {file_path}")
-#             if os.path.exists(file_path):
-#                 load_con = joblib.load(file_path)
-#                 self.lengths.extend(load_con["lengths"])
-#                 self.data.extend(load_con["data"])
-#                 self.styles.extend(load_con["styles"])
-#                 self.ctrl_data.extend(load_con["ctrl_data"])
-#             else:
-#                 print(f"wrong file: {file_path}")
-#         # <-----
-#         # import ipdb;ipdb.set_trace()
-#         style_onehot_save_path = (
-#             "/root/apdcephfs/private_wallyliang/PLANT/difftraj/style_str_to_onehot.pt"
-#         )
-#         self.style_str_to_onehot = torch.load(style_onehot_save_path)
-#         # ---->
+        self.lengths, self.data, self.styles, self.ctrl_data = load_from_jpkl(
+            self.args.train_data_path
+        )
 
-#         if "test" in self.split_file and "window_size" in self.args:
-#             # 35 is hard coded
-#             self.lengths = [
-#                 self.lengths[idx] + 35 - self.win_size
-#                 for idx in range(len(self.lengths))
-#             ]
-#             self.data = [
-#                 self.data[idx]
-#                 for idx in range(len(self.lengths))
-#                 if self.lengths[idx] > 0
-#             ]
-#             self.styles = [
-#                 self.styles[idx]
-#                 for idx in range(len(self.lengths))
-#                 if self.lengths[idx] > 0
-#             ]
-#             self.ctrl_data = [
-#                 self.ctrl_data[idx]
-#                 for idx in range(len(self.lengths))
-#                 if self.lengths[idx] > 0
-#             ]
-#             self.lengths = [
-#                 self.lengths[idx]
-#                 for idx in range(len(self.lengths))
-#                 if self.lengths[idx] > 0
-#             ]
+        self.style_str_to_onehot = torch.load(style_onehot_save_path)
 
-#         self.cumsum = np.cumsum([0] + self.lengths)
-#         print(f"data length: {len(self.data)}")
-#         print(
-#             "Total number of motions {}, snippets {}".format(
-#                 len(self.data), self.cumsum[-1]
-#             )
-#         )
+        # 35 is hard coded
+        self.lengths = [
+            self.lengths[idx] + 35 - self.win_size
+            for idx in range(len(self.lengths))
+        ]
 
-#         # load mean std
-#         load_con = np.load(train_mean_std)
-#         print(f"load std mean from {train_mean_std}")
-#         for k, v in load_con.items():
-#             print(f"set key {k}, shape {v.shape}")
-#             setattr(self, k, v)
+        def relist_data(ds):
+            return [
+                ds[idx] for idx in range(len(self.lengths)) if self.lengths[idx] > 0
+            ]
 
-#     def __len__(self):
-#         # if self.eval_mode:
-#         #     return 1000
-#         return self.cumsum[-1]
+        self.data = relist_data(self.data)
+        self.styles = relist_data(self.styles)
+        self.ctrl_data = relist_data(self.ctrl_data)
+        self.lengths = relist_data(self.lengths)
 
-#     def __getitem__(self, item):
-#         if "test" in self.split_file:
-#             item = 0
+        self.cumsum = np.cumsum([0] + self.lengths)
+        print(f"data length: {len(self.data)}")
+        print(
+            "Total number of motions {}, snippets {}".format(
+                len(self.data), self.cumsum[-1]
+            )
+        )
 
-#         if item != 0:
-#             motion_id = np.searchsorted(self.cumsum, item) - 1
-#             idx = item - self.cumsum[motion_id] - 1
-#         else:
-#             motion_id = 0
-#             idx = 0
+        # load mean std
+        train_mean_std = self.args.load_mean_path
+        load_con = np.load(train_mean_std)
+        print(f"load std mean from {train_mean_std}")
+        for k, v in load_con.items():
+            print(f"set key {k}, shape {v.shape}")
+            setattr(self, k, v)
 
-#         style = self.styles[motion_id]
-#         style_code = self.style_str_to_onehot[style].cpu().numpy()
-#         motoin_info_all = self.data[motion_id][idx : idx + self.win_size]
-#         ctrl_signal = self.ctrl_data[motion_id][idx : idx + self.win_size]
+    def __len__(self):
+        return self.cumsum[-1]
 
-#         motoin_info_all = (
-#             motoin_info_all - self.motoin_info_all_list_mean
-#         ) / self.motoin_info_all_list_std
-#         if "normCtrlTraj" in self.args.in_type:
-#             ctrl_signal = (ctrl_signal - self.ctrl_signal_mean) / self.ctrl_signal_std
+    def __getitem__(self, item):
+        if "test" in self.split:
+            item = 0
 
-#         if self.eval_mode:
-#             target_motion = motoin_info_all[self.pastMotion_len :]
-#             past_motion = motoin_info_all[: self.pastMotion_len]
-#             ctrl_traj = ctrl_signal[self.pastMotion_len :]
-#             # import ipdb;ipdb.set_trace()
-#             assert target_motion.shape[0] == self.args.window_size
-#         else:
-#             target_motion = motoin_info_all[self.pastMotion_len :]  # after
-#             past_motion = motoin_info_all[
-#                 : self.pastMotion_len
-#             ]  # prev as past motion condition
-#             ctrl_traj = ctrl_signal[self.pastMotion_len :]
-#             assert target_motion.shape[0] == self.inp_len
-#             assert ctrl_traj.shape[0] == self.inp_len
+        if item != 0:
+            motion_id = np.searchsorted(self.cumsum, item) - 1
+            idx = item - self.cumsum[motion_id] - 1
+        else:
+            motion_id = 0
+            idx = 0
 
-#         return (style_code, target_motion, past_motion, ctrl_traj)
+        style = self.styles[motion_id]
+        style_code = self.style_str_to_onehot[style].cpu().numpy()
+        motoin_info_all = self.data[motion_id][idx : idx + self.win_size]
+        ctrl_signal = self.ctrl_data[motion_id][idx : idx + self.win_size]
+
+        motoin_info_all = (
+            motoin_info_all - self.motoin_info_all_list_mean
+        ) / self.motoin_info_all_list_std
+        
+        if self.args.normlize_ctrl_traj:
+            ctrl_signal = (ctrl_signal - self.ctrl_signal_mean) / self.ctrl_signal_std
+
+        if self.eval_mode:
+            target_motion = motoin_info_all[self.pastMotion_len :]
+            past_motion = motoin_info_all[: self.pastMotion_len]
+            ctrl_traj = ctrl_signal[self.pastMotion_len :]
+            # import ipdb;ipdb.set_trace()
+            assert target_motion.shape[0] == self.args.window_size
+        else:
+            target_motion = motoin_info_all[self.pastMotion_len :]  # after
+            past_motion = motoin_info_all[
+                : self.pastMotion_len
+            ]  # prev as past motion condition
+            # ipdb.set_trace()
+            ctrl_traj = ctrl_signal[self.pastMotion_len :]
+            assert target_motion.shape[0] == self.inp_len
+            assert ctrl_traj.shape[0] == self.inp_len
+
+        return (style_code, target_motion, past_motion, ctrl_traj)
 
 
 class difftraj_dataset(data.Dataset):
@@ -322,35 +244,19 @@ class difftraj_dataset(data.Dataset):
         all args used are mainly store in `args`.
     """
 
-    def __init__(self, split_file, args=None):
+    def __init__(self, split, args=None):
         self.args = args
-        self.split_file = split_file
+        self.split = split
 
         if self.args.use_ar:
             self.win_size = self.args.p_len + self.args.f_len
         else:
             self.win_size = self.args.seq_len
 
-        self.lengths = []
-        self.data = []
-        self.styles = []
-        self.ctrl_data = []
-        for file_path in self.args.train_data_path:
-            if os.path.exists(file_path):
-                print(f"loading {file_path}")
-                load_con = joblib.load(file_path)
-                lens = load_con["lengths"]
-                print(f"len: {len(lens)}")
-                self.lengths.extend(load_con["lengths"])
-                self.data.extend(load_con["data"])
-                self.styles.extend(load_con["styles"])
-                self.ctrl_data.extend(load_con["ctrl_data"])
-            else:
-                print(f"wrong file: {file_path}")
-
-        style_onehot_save_path = os.path.join(
-            os.path.dirname(__file__), "../../../style_str_to_onehot.pt"
+        self.lengths, self.data, self.styles, self.ctrl_data = load_from_jpkl(
+            self.args.train_data_path
         )
+
         self.style_str_to_onehot = torch.load(style_onehot_save_path)
 
         # 35 is hard coded
@@ -385,9 +291,9 @@ class difftraj_dataset(data.Dataset):
             print(f"set key {k}, shape {v.shape}")
             setattr(self, k, v)
 
-        if data_len:=self.__len__() < 1:
+        if data_len := self.__len__() < 1:
             raise Exception(f"Error data length.")
-        
+
         print(f"[DATA] {data_len=}")
 
     def __len__(self):
@@ -407,7 +313,7 @@ class difftraj_dataset(data.Dataset):
         motoin_info_all = (
             motoin_info_all - self.motoin_info_all_list_mean
         ) / self.motoin_info_all_list_std
-        
+
         # You can not debug with pdb along with torch.dataloader(num_workers>1)
         # import ipdb;ipdb.set_trace()
 
@@ -430,119 +336,100 @@ class difftraj_dataset(data.Dataset):
             return (style_code, condition, target, motoin_info_all)
 
 
-# # <==================
-# # smpl pose prediction
-# class diffpose_dataset(data.Dataset):
-#     def __init__(self, split_file, args=None):
-#         self.args = args
-#         self.split_file = split_file
-#         self.win_size = self.args.seq_len
+class diffpose_dataset(data.Dataset):
+    """
+    smpl pose prediction
+    """
 
-#         self.image_points = []
-#         # self.norm_kp2d = []
-#         self.cam_angvel = []
-#         self.data = []
-#         for file_path in self.args.train_data_path:
-#             if os.path.exists(file_path):
-#                 print(f"loading {file_path}")
-#                 load_con = joblib.load(file_path)
-#                 # import ipdb;ipdb.set_trace()
-#                 # self.image_points.extend([ii['image_points'] for ii in load_con])
-#                 # # self.norm_kp2d.extend([ii['norm_kp2d'] for ii in load_con])
-#                 # self.cam_angvel.extend([ii['cam_angvel'] for ii in load_con])
-#                 # self.data.extend([ii['motoin_info_all'] for ii in load_con])
-#                 self.image_points.extend(load_con["image_points"])
-#                 self.cam_angvel.extend(load_con["cam_angvel"])
-#                 self.data.extend(load_con["motoin_info_all"])
-#             else:
-#                 print(f"wrong file: {file_path}")
+    def __init__(self, split, args=None):
+        self.args = args
+        self.split = split
+        self.win_size = self.args.seq_len
 
-#         self.image_points = np.stack(self.image_points, axis=0)
-#         self.cam_angvel = np.stack(self.cam_angvel, axis=0)
-#         self.data = np.stack(self.data, axis=0)
+        self.image_points = []
+        # self.norm_kp2d = []
+        self.cam_angvel = []
+        self.data = []
+        for file_path in self.args.train_data_path:
+            if os.path.exists(file_path):
+                print(f"loading {file_path}")
+                load_con = joblib.load(file_path)
+                self.image_points.extend(load_con["image_points"])
+                self.cam_angvel.extend(load_con["cam_angvel"])
+                self.data.extend(load_con["motoin_info_all"])
+            else:
+                print(f"wrong file: {file_path}")
 
-#         print(f"data shape: {self.data.shape}")
+        self.image_points = np.stack(self.image_points, axis=0)
+        self.cam_angvel = np.stack(self.cam_angvel, axis=0)
+        self.data = np.stack(self.data, axis=0)
 
-#         train_mean_std = self.args.load_mean_path
-#         load_con = np.load(train_mean_std)
-#         print(f"load std mean from {train_mean_std}")
-#         for k, v in load_con.items():
-#             print(f"set key {k}, shape {v.shape}")
-#             setattr(self, k, v)
+        print(f"data shape: {self.data.shape}")
 
-#         # import ipdb;ipdb.set_trace()
-#         # self.pose6d_std[self.pose6d_std==0]=1
-#         # self.motoin_info_all_std[self.motoin_info_all_std==0]=1
-#         self.keypoints_normalizer = Normalizer(None)
+        train_mean_std = self.args.load_mean_path
+        load_con = np.load(train_mean_std)
+        print(f"load std mean from {train_mean_std}")
+        for k, v in load_con.items():
+            print(f"set key {k}, shape {v.shape}")
+            setattr(self, k, v)
 
-#     def __len__(self):
-#         # return self.cumsum[-1]
-#         return len(self.data)
+        self.keypoints_normalizer = Normalizer(None)
 
-#     def __getitem__(self, item):
-#         idx = item
-#         # import ipdb;ipdb.set_trace()
-#         # norm_kp2d = self.norm_kp2d[idx][:,:17*2]
-#         res = torch.tensor([2048, 2048])
-#         image_points = t2t(self.image_points[idx])
+    def __len__(self):
+        # return self.cumsum[-1]
+        return len(self.data)
 
-#         # TODO: add mask
-#         # add_mask = 0
-#         T = image_points.shape[0]
-#         all_mask = np.ones((T, 17, 1))
-#         if self.args.add_mask:
-#             main_p = 0.2
-#             lower_p = 0.3
-#             mask = np.random.binomial(1, main_p, size=(T, 17))
-#             ad_mask = np.ones((T, 17))
-#             ad_mask[:, [11, 12, 13, 14, 15, 16]] = np.random.binomial(
-#                 1, lower_p, size=(T, 6)
-#             )
-#             all_mask = np.logic_and(mask, ad_mask)[..., None]
-#             image_points = image_points[all_mask]
+    def __getitem__(self, item):
+        idx = item
+        # import ipdb;ipdb.set_trace()
+        # norm_kp2d = self.norm_kp2d[idx][:,:17*2]
+        res = torch.tensor([2048, 2048])
+        image_points = t2t(self.image_points[idx])
 
-#         norm_kp2d, norm_bbox = self.keypoints_normalizer(
-#             image_points.cpu().clone(),
-#             res,
-#             cam_intrinsics=None,
-#             patch_width=224,
-#             patch_height=224,
-#             bbox=None,
-#         )
-#         norm_kp2d = norm_kp2d[:, :-3].cpu().numpy()
+        # add_mask = 0
+        T = image_points.shape[0]
+        all_mask = np.ones((T, 17, 1))
+        if self.args.add_mask:
+            main_p = 0.2
+            lower_p = 0.3
+            mask = np.random.binomial(1, main_p, size=(T, 17))
+            ad_mask = np.ones((T, 17))
+            ad_mask[:, [11, 12, 13, 14, 15, 16]] = np.random.binomial(
+                1, lower_p, size=(T, 6)
+            )
+            all_mask = np.logic_and(mask, ad_mask)[..., None]
+            image_points = image_points[all_mask]
 
-#         if self.args.add_mask:
-#             new_norm_kp2d = np.zeros(T, 17)
-#             new_norm_kp2d[all_mask] = norm_kp2d
-#             norm_kp2d = new_norm_kp2d
+        norm_kp2d, norm_bbox = self.keypoints_normalizer(
+            image_points.cpu().clone(),
+            res,
+            cam_intrinsics=None,
+            patch_width=224,
+            patch_height=224,
+            bbox=None,
+        )
+        norm_kp2d = norm_kp2d[:, :-3].cpu().numpy()
 
-#         cam_angvel = self.cam_angvel[idx]
-#         target = (self.data[idx] - self.motoin_info_all_mean) / self.motoin_info_all_std
+        if self.args.add_mask:
+            new_norm_kp2d = np.zeros(T, 17)
+            new_norm_kp2d[all_mask] = norm_kp2d
+            norm_kp2d = new_norm_kp2d
 
-#         # if self.args.diffpose_body_only:
-#         #     target = target[:,11:]
+        cam_angvel = self.cam_angvel[idx]
+        target = (self.data[idx] - self.motoin_info_all_mean) / self.motoin_info_all_std
 
-#         return (norm_kp2d, cam_angvel, target, all_mask)
+        if self.args.diffpose_body_only:
+            target = target[:,11:]
+
+        return (norm_kp2d, cam_angvel, target, all_mask)
 
 
 class CommanDataloader(data.Dataset):
+    def __init__(self, dataset_type, split="train", args=None, **kwargs):
+        self.t2m_dataset = eval(dataset_type)(split, args=args)
+
     def __getitem__(self, item):
         return self.t2m_dataset.__getitem__(item)
 
     def __len__(self):
         return self.t2m_dataset.__len__()
-
-
-class diffpose_dataloader(CommanDataloader):
-    def __init__(self, split="train", args=None, **kwargs):
-        self.t2m_dataset = diffpose_dataset(split, args=args)
-
-
-class difftraj_dataloader(CommanDataloader):
-    def __init__(self, split="train", args=None, **kwargs):
-        self.t2m_dataset = difftraj_dataset(split, args=args)
-
-
-class diffgen_dataloader(CommanDataloader):
-    def __init__(self, split="train", args=None, **kwargs):
-        self.t2m_dataset = diffgen_dataset(split, args=args)

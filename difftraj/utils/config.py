@@ -1,10 +1,10 @@
 import os
 
-SMPL_DATA_PATH = "./body_models/smpl"
+main_code_path = os.path.join(os.path.dirname(__file__), "../..")
 
-SMPL_KINTREE_PATH = os.path.join(SMPL_DATA_PATH, "kintree_table.pkl")
-SMPL_MODEL_PATH = os.path.join(SMPL_DATA_PATH, "SMPL_NEUTRAL.pkl")
-JOINT_REGRESSOR_TRAIN_EXTRA = os.path.join(SMPL_DATA_PATH, "J_regressor_extra.npy")
+SMPL_KINTREE_PATH = os.path.join(main_code_path, "model_files/kintree_table.pkl")
+SMPL_MODEL_PATH = os.path.join(main_code_path, "model_files/uhc_data/smpl/SMPL_NEUTRAL.pkl")
+JOINT_REGRESSOR_TRAIN_EXTRA = os.path.join(main_code_path, "model_files/J_regressor_extra.npy")
 
 ROT_CONVENTION_TO_ROT_NUMBER = {
     "legacy": 23,

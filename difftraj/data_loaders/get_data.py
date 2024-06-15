@@ -1,3 +1,4 @@
+from data_loaders.humanml.data.dataset import CommanDataloader
 from torch.utils.data._utils.collate import default_collate
 from torch.utils.data import DataLoader
 import torch
@@ -151,27 +152,20 @@ def get_dataset_loader(
     name, batch_size, num_frames, split="train", hml_mode="train", args=None
 ):
     if name == "difftraj":
-        from data_loaders.humanml.data.dataset import difftraj_dataloader
-
-        data_class = difftraj_dataloader
-        if args.use_ar:
-            collate_fn = traj_pred_ar_collate
-        else:
-            collate_fn = difftraj_collate
+        dataset_type = 'difftraj_dataset'
+        collate_fn = traj_pred_ar_collate if args.use_ar else difftraj_collate
     elif name == "diffgen":
-        from data_loaders.humanml.data.dataset import diffgen_dataloader
-
-        data_class = diffgen_dataloader
+        dataset_type = 'diffgen_dataset'
         collate_fn = diffgen_collate
     elif name == "diffpose":
-        from data_loaders.humanml.data.dataset import diffpose_dataloader
-
-        data_class = diffpose_dataloader
+        dataset_type = 'diffpose_dataset'
         collate_fn = diffpose_collate
 
-    # num_workers=0
-    num_workers = 8
-    dataset = data_class(split=split, num_frames=num_frames, mode=hml_mode, args=args)
+    if args.debug:
+        num_workers=0
+    else:
+        num_workers = 8
+    dataset = CommanDataloader(dataset_type=dataset_type, split=split, num_frames=num_frames, mode=hml_mode, args=args)
     loader = DataLoader(
         dataset,
         batch_size=batch_size,

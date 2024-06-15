@@ -51,6 +51,7 @@ def norm_glamr_traj(local_traj):
     return local_traj
 
 
+cut_frames_info = pandas.read_csv("dataset/100styles_meta_Frame_Cuts.csv")
 AMASS_OCC_META_PATH = "amass_copycat_occlusion_v3.pkl"
 amass_occlusion = joblib.load(AMASS_OCC_META_PATH)
 
@@ -107,7 +108,7 @@ class ParseNpzOutput:
     trans: Union[torch.Tensor, np.ndarray]
 
 
-def parse_100style_npz(name, cut_frames_info, bdata, down_sample, device, debug=False):
+def parse_100style_npz(name, bdata, down_sample, device, debug=False):
     # cut frames
     tmp = name.split("/")[-1].split("_")
     style = tmp[0]
@@ -125,19 +126,20 @@ def parse_100style_npz(name, cut_frames_info, bdata, down_sample, device, debug=
     pose_body = (poses[::down_sample, 1:22, :]).to(device).reshape(-1, 63)
     pose_hand = (poses[::down_sample, -30:, :]).to(device).reshape(-1, 90)
     trans = (trans[::down_sample]).to(device)
-    return ParseNpzOutput(root_orient, pose_body, pose_hand, trans)
+    # return ParseNpzOutput(root_orient, pose_body, pose_hand, trans)
+    return root_orient, pose_body, pose_hand, trans, style
 
 
 def ours_npz(bdata, down_sample, device):
     """Parse scrape data motion npz, which store in blender smplex-addon format."""
-    style = "Neutral"
     poses = torch.Tensor(bdata["poses"])
     trans = torch.Tensor(bdata["trans"])
     root_orient = (poses[::down_sample, 0]).to(device)
     pose_body = (poses[::down_sample, 1:22, :]).to(device).reshape(-1, 63)
     pose_hand = (poses[::down_sample, -30:, :]).to(device).reshape(-1, 90)
     trans = (trans[::down_sample]).to(device)
-    return ParseNpzOutput(root_orient, pose_body, pose_hand, trans)
+    # return ParseNpzOutput(root_orient, pose_body, pose_hand, trans)
+    return root_orient, pose_body, pose_hand, trans
 
 
 def parse_amass_npz(bdata, down_sample, device):
@@ -190,11 +192,7 @@ def get_body_model(
 @click.option("--in_npz_list", help="input path")
 @click.option(
     "--in_data_type",
-    type=click.Choice(
-        [
-            "amass",
-        ]
-    ),
+    type=click.Choice(["amass", "100styles", 'scrape']),
     help="Currently, only support amass dataset.",
 )
 @click.option(
@@ -222,6 +220,7 @@ def parse_dataset(
 ):
 
     id_list = open(in_npz_list, "r").readlines()
+    print(f'{len(id_list)=}')
 
     load_pred_process_jpks = {
         in_data_type: {
@@ -248,44 +247,34 @@ def parse_dataset(
             clip_name = raw_path.split("/")[-1]
             seq_name = raw_path.split("/")[-2]
             collect_name = raw_path.split("/")[-3]
-            search_key = f"0-{collect_name}_{seq_name}_{clip_name[:-4]}"
-            id_name = f"{collect_name}_{seq_name}_{clip_name}"
-            id_name = id_name.replace(".npz", "")
 
-            # We filter out motions that are not flat-ground. this is a limitaiton.
-            if not judge_is_normal(search_key):
-                continue
+            if in_data_type=='amass':
+                # We filter out motions that are not flat-ground. this is a limitaiton.
+                if not judge_is_normal(search_key=f"0-{collect_name}_{seq_name}_{clip_name[:-4]}"):
+                    continue
 
-            if not judge_is_normal2(raw_path):
-                continue
+                if not judge_is_normal2(raw_path):
+                    continue
 
             bdata = np.load(raw_path, allow_pickle=True)
-            fps = 0
+            
             try:
                 fps = bdata["mocap_framerate"]
             except:
                 continue
 
-            if bdata["gender"] == "male":
-                bm = get_body_model(
-                    device,
-                    type="male",
-                )
-                body_template_male = bm()
-                # template_joints = body_template_male.Jtr
-            elif bdata["gender"] == "neutral":
-                bm = get_body_model(
-                    device,
-                    type="male",
-                )
-                # template_joints = body_template_male.Jtr
-            else:
+            if bdata["gender"] == "female":
                 bm = get_body_model(
                     device,
                     type="female",
                 )
-                body_template_female = bm()
-                # template_joints = body_template_female.Jtr
+            else:
+                bm = get_body_model(
+                    device,
+                    type="male",
+                )
+                
+            # template_joints = bm().Jtr
 
             down_sample = int(fps / save_data_fps)
             if down_sample < 1:
@@ -293,12 +282,12 @@ def parse_dataset(
 
             # import ipdb;ipdb.set_trace()
 
-            if "100style" in raw_path:
-                raise NotImplementedError
-                parse_100style_npz()
-            elif "MOT_walk_videos_wham" in raw_path or "imitated" in raw_path:
+            if in_data_type=='100styles':
+                root_orient, pose_body, pose_hand, trans, style = parse_100style_npz(name, bdata, down_sample, device)
+            elif in_data_type=='scrape':
                 raise NotImplementedError
                 # blender smplx npz format
+                style = "Neutral"
                 ours_npz()
             else:
                 # amsss npz format
@@ -401,6 +390,8 @@ def parse_dataset(
             tmp = local_pose.reshape(-1, 22, 3)
             accl_judge = (tmp[1:] - tmp[:-1]).norm(dim=-1).mean(dim=-1).mean(dim=-1)
             accl_judge_list.append(accl_judge)
+
+        print(f'After processing, we get {len(data)=}')
 
         joblib.dump(
             {

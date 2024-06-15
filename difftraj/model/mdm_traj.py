@@ -3,6 +3,189 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+class MODEL_DIFFPOSE(nn.Module):
+    def __init__(
+        self,
+        modeltype,
+        njoints,
+        nfeats,
+        num_actions,
+        translation,
+        pose_rep,
+        glob,
+        glob_rot,
+        latent_dim=256,
+        ff_size=1024,
+        num_layers=8,
+        num_heads=4,
+        dropout=0.1,
+        ablation=None,
+        activation="gelu",
+        legacy=False,
+        data_rep="rot6d",
+        dataset="amass",
+        clip_dim=512,
+        arch="trans_enc",
+        emb_trans_dec=False,
+        clip_version=None,
+        **kargs
+    ):
+        super().__init__()
+
+        self.args = kargs["args"]
+        self.seq_len = self.args.seq_len
+        self.legacy = legacy
+        self.modeltype = modeltype
+        self.njoints = njoints
+        self.nfeats = nfeats
+        self.num_actions = num_actions
+        self.data_rep = data_rep
+        self.dataset = dataset
+
+        self.pose_rep = pose_rep
+        self.glob = glob
+        self.glob_rot = glob_rot
+        self.translation = translation
+
+        self.latent_dim = latent_dim
+
+        self.ff_size = ff_size
+        self.num_layers = num_layers
+        self.num_heads = num_heads
+        self.dropout = dropout
+
+        self.ablation = ablation
+        self.activation = activation
+        self.clip_dim = clip_dim
+        self.action_emb = kargs.get("action_emb", None)
+
+        self.input_feats = self.njoints * self.nfeats
+        self.normalize_output = kargs.get("normalize_encoder_output", False)
+        self.cond_mode = kargs.get("cond_mode", "no_cond")
+        self.cond_mask_prob = kargs.get("cond_mask_prob", 0.0)
+        self.arch = arch
+
+        self.sequence_pos_encoder = PositionalEncoding(self.latent_dim, self.dropout)
+        self.emb_trans_dec = emb_trans_dec
+
+        seqTransEncoderLayer = nn.TransformerEncoderLayer(
+            d_model=self.latent_dim,
+            nhead=self.num_heads,
+            dim_feedforward=self.ff_size,
+            dropout=self.dropout,
+            activation=self.activation,
+        )
+
+        self.seqTransEncoder = nn.TransformerEncoder(
+            seqTransEncoderLayer, num_layers=self.num_layers
+        )
+
+        self.embed_timestep = TimestepEmbedder(
+            self.latent_dim, self.sequence_pos_encoder
+        )
+
+        self.input_process = InputProcess(self.data_rep, self.njoints, self.latent_dim)
+
+        # import pdb;pdb.set_trace()
+        self.kpt2d_enc = nn.Linear(17 * 2, self.latent_dim)
+        if not self.args.diffpose_body_only:
+            self.cam_angvel_enc = nn.Linear(6, self.latent_dim)
+        self.output_process = OutputProcess(
+            self.data_rep, self.input_feats, self.latent_dim, self.njoints, self.nfeats
+        )
+
+    def parameters_wo_clip(self):
+        return [
+            p
+            for name, p in self.named_parameters()
+            if not name.startswith("clip_model.")
+        ]
+
+    def mask_cond(self, cond, force_mask=False):
+        bs, d = cond.shape
+        if force_mask:
+            return torch.zeros_like(cond)
+        elif self.training and self.cond_mask_prob > 0.0:
+            mask = torch.bernoulli(
+                torch.ones(bs, device=cond.device) * self.cond_mask_prob
+            ).view(
+                bs, 1
+            )  # 1-> use null_cond, 0-> use real cond
+            return cond * (1.0 - mask)
+        else:
+            return cond
+
+    def mask_cond2(self, cond, force_mask=False):
+        bs = cond.shape[0]
+        if force_mask:
+            return torch.zeros_like(cond)
+        elif self.training and self.cond_mask_prob > 0.0:
+            mask = torch.bernoulli(
+                torch.ones(bs, device=cond.device) * self.cond_mask_prob
+            ).view(
+                bs, 1, 1
+            )  # 1-> use null_cond, 0-> use real cond
+            return cond * (1.0 - mask)
+        else:
+            return cond
+
+    def forward(self, x, timesteps, y=None):
+        """
+        x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
+        timesteps: [batch_size] (int)
+        """
+        bs, njoints, nfeats, nframes = x.shape
+        emb = self.embed_timestep(timesteps)  # [1, bs, d]
+        force_mask = y.get("uncond", False)
+        x = self.input_process(x)  # T,B,512
+
+        cond = y["norm_kp2d"].to(x.device).permute(3, 2, 0, 1)[:, 0, :, :]
+
+        if self.args.add_mask:
+            import pdb
+
+            pdb.set_trace()
+
+        emb1 = self.kpt2d_enc(cond)
+
+        if self.args.diffpose_body_only:
+            # import pdb;pdb.set_trace()
+            x = x + emb1
+            xseq = torch.cat((emb, x), axis=0)  # [seqlen+1, bs, d]
+            xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
+            assert xseq.shape[0] == (self.seq_len + 1)
+
+        else:
+            cond2 = y["cam_angvel"].to(x.device).permute(3, 2, 0, 1)[:, 0, :, :]
+            emb2 = self.cam_angvel_enc(cond2)
+
+            # x = x + emb1
+            # xseq = torch.cat((emb2, emb, x), axis=0)  # [seqlen+1, bs, d]
+            # xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
+            # assert xseq.shape[0]==(self.seq_len*2+1)
+
+            # import pdb;pdb.set_trace()
+            xseq = torch.cat((emb1, emb2, emb, x), axis=0)  # [seqlen+1, bs, d]
+            xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
+            assert xseq.shape[0] == (self.seq_len * 3 + 1)
+
+        output = self.seqTransEncoder(xseq)[
+            -self.seq_len :
+        ]  # , src_key_padding_mask=~maskseq)  # [seqlen, bs, d]
+        output = self.output_process(output)  # [bs, njoints, nfeats, nframes]
+        # import pdb;pdb.set_trace()
+        return output
+
+    def _apply(self, fn):
+        super()._apply(fn)
+        if hasattr(self, "rot2xyz"):
+            self.rot2xyz.smpl_model._apply(fn)
+
+    def train(self, *args, **kwargs):
+        super().train(*args, **kwargs)
+        if hasattr(self, "rot2xyz"):
+            self.rot2xyz.smpl_model.train(*args, **kwargs)
+
 
 class MDM(nn.Module):
     def __init__(

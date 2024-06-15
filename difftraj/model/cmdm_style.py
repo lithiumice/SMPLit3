@@ -275,6 +275,120 @@ class MDM(nn.Module):
         control = control * weight
         return control
 
+    def mask_cond(self, cond, force_mask=False):
+        bs, d = cond.shape
+        if force_mask:
+            return torch.zeros_like(cond)
+        elif self.training and self.cond_mask_prob > 0.0:
+            mask = torch.bernoulli(
+                torch.ones(bs, device=cond.device) * self.cond_mask_prob
+            ).view(
+                bs, 1
+            )  # 1-> use null_cond, 0-> use real cond
+            return cond * (1.0 - mask)
+        else:
+            return cond
+    def encode_text(self, raw_text):
+        # raw_text - list (batch_size length) of strings with input text prompts
+        device = next(self.parameters()).device
+        max_text_len = (
+            20 if self.dataset in ["humanml", "kit"] else None
+        )  # Specific hardcoding for humanml dataset
+        if max_text_len is not None:
+            default_context_length = 77
+            context_length = max_text_len + 2  # start_token + 20 + end_token
+            assert context_length < default_context_length
+            texts = clip.tokenize(
+                raw_text, context_length=context_length, truncate=True
+            ).to(
+                device
+            )  # [bs, context_length] # if n_tokens > context_length -> will truncate
+            # print('texts', texts.shape)
+            zero_pad = torch.zeros(
+                [texts.shape[0], default_context_length - context_length],
+                dtype=texts.dtype,
+                device=texts.device,
+            )
+            texts = torch.cat([texts, zero_pad], dim=1)
+            # print('texts after pad', texts.shape, texts)
+        else:
+            texts = clip.tokenize(raw_text, truncate=True).to(
+                device
+            )  # [bs, context_length] # if n_tokens > 77 -> will truncate
+        return self.clip_model.encode_text(texts).float()
+    def cmdm_forward_text_mdm(self, x, timesteps, y=None, weight=1.0):
+        """
+        Realism Guidance
+        x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
+        timesteps: [batch_size] (int)
+        """
+
+        emb = self.c_embed_timestep(timesteps)  # [1, bs, d]
+
+        seq_mask = y["hint"].sum(-1) != 0
+
+        guided_hint = self.input_hint_block(y["hint"].float())  # [bs, d]
+
+        force_mask = y.get("uncond", False)
+        if "text" in self.cond_mode:
+            enc_text = self.encode_text(y["text"])
+            emb += self.c_embed_text(self.mask_cond(enc_text, force_mask=force_mask))
+
+        x = self.c_input_process(x)
+
+        x += guided_hint * seq_mask.permute(1, 0).unsqueeze(-1)
+
+        # adding the timestep embed
+        xseq = torch.cat((emb, x), axis=0)  # [seqlen+1, bs, d]
+        xseq = self.c_sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
+        output = self.c_seqTransEncoder(xseq)  # [seqlen+1, bs, d]
+
+        control = []
+        for i, module in enumerate(self.zero_convs):
+            control.append(module(output[i]))
+        control = torch.stack(control)
+
+        control = control * weight
+        return control
+
+
+
+    def mdm_forward_text_mdm(self, x, timesteps, y=None, control=None):
+        """
+        x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
+        timesteps: [batch_size] (int)
+        """
+        emb = self.embed_timestep(timesteps)  # [1, bs, d]
+
+        force_mask = y.get("uncond", False)
+        if "text" in self.cond_mode:
+            enc_text = self.encode_text(y["text"])
+            emb += self.embed_text(self.mask_cond(enc_text, force_mask=force_mask))
+
+        x = self.input_process(x)
+
+        # adding the timestep embed
+        xseq = torch.cat((emb, x), axis=0)  # [seqlen+1, bs, d]
+        xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
+        output = self.seqTransEncoder(xseq, control=control)[
+            1:
+        ]  # , src_key_padding_mask=~maskseq)  # [seqlen, bs, d]
+
+        output = self.output_process(output)  # [bs, njoints, nfeats, nframes]
+        return output
+
+    def forward_text_mdm(self, x, timesteps, y=None):
+        """
+        x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
+        timesteps: [batch_size] (int)
+        """
+        if "hint" in y.keys():
+            control = self.cmdm_forward_text_mdm(x, timesteps, y)
+        else:
+            control = None
+        output = self.mdm_forward_text_mdm(x, timesteps, y, control)
+        return output
+
     def _apply(self, fn):
         super()._apply(fn)
         if hasattr(self, "rot2xyz"):
@@ -284,6 +398,28 @@ class MDM(nn.Module):
         super().train(*args, **kwargs)
         if hasattr(self, "rot2xyz"):
             self.rot2xyz.smpl_model.train(*args, **kwargs)
+
+class HintBlock(nn.Module):
+    def __init__(self, data_rep, input_feats, latent_dim):
+        super().__init__()
+        self.data_rep = data_rep
+        self.input_feats = input_feats
+        self.latent_dim = latent_dim
+        self.poseEmbedding = nn.ModuleList(
+            [
+                nn.Linear(self.input_feats, self.latent_dim),
+                nn.Linear(self.latent_dim, self.latent_dim),
+                nn.Linear(self.latent_dim, self.latent_dim),
+                zero_module(nn.Linear(self.latent_dim, self.latent_dim)),
+            ]
+        )
+
+    def forward(self, x):
+        x = x.permute((1, 0, 2))
+
+        for module in self.poseEmbedding:
+            x = module(x)  # [seqlen, bs, d]
+        return x
 
 
 class PositionalEncoding(nn.Module):
