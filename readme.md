@@ -226,6 +226,18 @@ python -m sample.generate_traj \
 --vis_save_dir output
 ```
 
+这里提供了一个包装好的使用difftraj的接口，可以直接输入任意从 其他HPS方法得到的body pose，然后difftraj输出带有全局轨迹的motion。
+```bash
+cd SMPLit
+python3 difftraj_entry.py \
+--inp assets/diftraj_demo/beat2_our_rot.npz \
+--flip_x --rot_deg -90
+
+# 批量运行所有的npz
+find assets/diftraj_demo -name *.npz -print -exec sh -c \
+'python difftraj_entry.py --inp "$1" --flip_y' _ {} \;
+```
+
 # LOCO
 这部分的motion  generation使用和DiffTraj一套代码，本质上都是diffusion，只有condition和output是不一样而已。
 

@@ -5,7 +5,7 @@ from loguru import logger
 
 from configs import constants as _C
 from .smpl import SMPL
-from .my_smplx import SMPLX
+from .smplx_adapt import SMPLX
 from .cvt_hand_pca import attach_smplx_pca_func
 
 

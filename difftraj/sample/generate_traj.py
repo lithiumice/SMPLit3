@@ -22,6 +22,7 @@ from utils.model_util import create_gaussian_diffusion
 from data_loaders.get_data import get_model_args
 from utils.fixseed import fixseed
 from eval.smpl_utils import AnyRep2SMPLjoints
+from glob import glob
 
 from einops import rearrange
 import ipdb
@@ -29,22 +30,32 @@ import ipdb
 
 if __name__ == "__main__":
     args = generate_args()
-    # import ipdb;ipdb.set_trace()
     print(args)
+
     fixseed(args.seed)
     out_path = args.output_dir
+
+    # args.model_path can be root dir or model.pt
+    # ipdb.set_trace()
+    if not str(args.model_path).endswith(".pt"):
+        checkpoints = glob(f"{args.model_path}/model-*.pt")
+        checkpoints = sorted(
+            checkpoints, key=lambda x: int(x.split("-")[1].split(".")[0])
+        )
+        args.model_path = checkpoints[-1]
+        print(f"{args.model_path=} is set.")
+
     name = os.path.basename(os.path.dirname(args.model_path))
     niter = os.path.basename(args.model_path).replace("model", "").replace(".pt", "")
     dist_util.setup_dist(args.device)
 
     args.batch_size = args.num_samples
-    
-    
+
     use_ddim = 0
     save_gt_videos = 1
     if args.diffusion_steps > 200:
         use_ddim = 1
-        
+
     if use_ddim:
         args.diffusion_steps = 100
 
@@ -89,8 +100,12 @@ if __name__ == "__main__":
     trans_matrix = torch.tensor(
         [[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]]
     ).type_as(I)
-    mean_203 = torch.from_numpy(data.dataset.t2m_dataset.motoin_info_all_list_mean).type_as(I)
-    std_203 = torch.from_numpy(data.dataset.t2m_dataset.motoin_info_all_list_std).type_as(I)
+    mean_203 = torch.from_numpy(
+        data.dataset.t2m_dataset.motoin_info_all_list_mean
+    ).type_as(I)
+    std_203 = torch.from_numpy(
+        data.dataset.t2m_dataset.motoin_info_all_list_std
+    ).type_as(I)
 
     iterator = iter(data)
     gt_motion, model_kwargs = next(iterator)
@@ -127,10 +142,9 @@ if __name__ == "__main__":
     std_137 = std_203[:137]
     mean_137 = mean_203[:137]
     std_11 = std_203[:11]
-    mean_11 = mean_203[:11]    
+    mean_11 = mean_203[:11]
     sample = sample[:, :137, :, :]
     gt_motion = gt_motion[:, :137, :, :]
-
 
     # just visualize
     traj2joints = AnyRep2SMPLjoints()
@@ -150,12 +164,11 @@ if __name__ == "__main__":
         motoin_info_all = motoin_info_all.cuda() * std_203 + mean_203
         sample_rep_gt = motoin_info_all.clone()
 
-        
         # ipdb.set_trace()
         sample_rep_pred = sample[bs_idx, :, 0, :].permute(1, 0)
         sample_rep_pred = sample_rep_pred * std_11 + mean_11
         sample_rep_pred_full = motoin_info_all.clone()
-        sample_rep_pred_full[:,:11] = sample_rep_pred
+        sample_rep_pred_full[:, :11] = sample_rep_pred
 
         global_pose = traj2joints.traj_to_joints(sample_rep_pred_full, zup_to_yup=True)
         save_path = f"{dataloader_infer_dir}/{caption}_pred_{bs_idx}.mp4"

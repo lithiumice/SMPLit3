@@ -612,7 +612,7 @@ def run(cfg,
         # joblib.dump(results, osp.join(output_pth, "wham_output.pkl"))
         # torch tensor to blender npz
         if args.run_smplify and args.save_wham_npz:
-            save_all_npz(
+            save_to_blender_smplx_addon_npz(
                 results, 'whamPose+diffTraj', 
                 trans_name = 'difftraj_trans_no_fit', 
                 root_name = 'difftraj_root_no_fit', 
@@ -620,7 +620,7 @@ def run(cfg,
                 output_pth = output_pth, fps= fps, 
                 save_prefix=args.save_prefix)
         
-        save_all_npz(
+        save_to_blender_smplx_addon_npz(
             results, 
             'difTraj_raw', 
             trans_name = 'difftraj_trans', 

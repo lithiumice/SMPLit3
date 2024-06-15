@@ -9,5 +9,5 @@ rsync -av --progress \
 	--exclude='third-party/' \
 	--exclude='model_files/' \
 	--exclude='pretrained_weights/' \
-	/home/lithiumice/talking_avatar/SMPLit2/ \
+	/home/lithiumice/talking_avatar/SMPLit3/ \
     root@devcloud:/apdcephfs/private_wallyliang/SMPLit/

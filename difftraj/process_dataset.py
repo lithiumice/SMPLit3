@@ -19,7 +19,7 @@ from torch.utils.data._utils.collate import default_collate
 from quaternion import *
 from constants import *
 
-main_code_path = os.path.join(os.path.dirname(__file__), "../..")
+main_code_path = os.path.join(os.path.dirname(__file__), "..")
 model_files_path = os.path.join(main_code_path, "model_files")
 third_party_path = os.path.join(main_code_path, "third-party")
 
