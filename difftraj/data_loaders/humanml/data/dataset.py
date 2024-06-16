@@ -134,26 +134,19 @@ def load_from_jpkl(train_data_path):
             print(f"wrong file: {file_path}")
     return lengths, data, styles, ctrl_data
 
+
+def load_var_from_npz_to_class(ins, npz_path):
+    load_con = np.load(npz_path)
+    print(f"load std mean from {npz_path}")
+    for k, v in load_con.items():
+        print(f"set key {k}, shape {v.shape}")
+        setattr(ins, k, v)
+
+
 import ipdb
 
-class diffgen_dataset(data.Dataset):
-    """
-    autoregressive generation with 100STYLE
-    """
-
-    def __init__(self, split, args, **kwargs):
-        self.args = args
-        self.split = split
-        self.ex_fps = self.args.train_fps
-        self.pastMotion_len = self.args.p_len
-        self.inp_len = self.args.f_len
-
-        if "test" in split and "window_size" in self.args:
-            self.win_size = self.pastMotion_len + self.args.window_size
-            self.eval_mode = True
-        else:
-            self.win_size = self.pastMotion_len + self.inp_len
-            self.eval_mode = False
+class diff_common(data.Dataset):
+    def post_init(self):
 
         self.lengths, self.data, self.styles, self.ctrl_data = load_from_jpkl(
             self.args.train_data_path
@@ -163,8 +156,7 @@ class diffgen_dataset(data.Dataset):
 
         # 35 is hard coded
         self.lengths = [
-            self.lengths[idx] + 35 - self.win_size
-            for idx in range(len(self.lengths))
+            self.lengths[idx] + 35 - self.win_size for idx in range(len(self.lengths))
         ]
 
         def relist_data(ds):
@@ -187,11 +179,38 @@ class diffgen_dataset(data.Dataset):
 
         # load mean std
         train_mean_std = self.args.load_mean_path
-        load_con = np.load(train_mean_std)
-        print(f"load std mean from {train_mean_std}")
-        for k, v in load_con.items():
-            print(f"set key {k}, shape {v.shape}")
-            setattr(self, k, v)
+        # print(f"load std mean from {train_mean_std}")
+        # load_con = np.load(train_mean_std)
+        # for k, v in load_con.items():
+        #     print(f"set key {k}, shape {v.shape}")
+        #     setattr(self, k, v)
+        load_var_from_npz_to_class(self, train_mean_std)
+
+        if data_len := self.__len__() < 1:
+            raise Exception(f"Error data length.")
+
+        print(f"[DATA] {data_len=}")
+
+class diffgen_dataset(diff_common):
+    """
+    autoregressive generation with 100STYLE
+    """
+
+    def __init__(self, split, args, **kwargs):
+        self.args = args
+        self.split = split
+        self.ex_fps = self.args.train_fps
+        self.pastMotion_len = self.args.p_len
+        self.inp_len = self.args.f_len
+
+        if "test" in split and "window_size" in self.args:
+            self.win_size = self.pastMotion_len + self.args.window_size
+            self.eval_mode = True
+        else:
+            self.win_size = self.pastMotion_len + self.inp_len
+            self.eval_mode = False
+
+        self.post_init()
 
     def __len__(self):
         return self.cumsum[-1]
@@ -238,7 +257,7 @@ class diffgen_dataset(data.Dataset):
         return (style_code, target_motion, past_motion, ctrl_traj)
 
 
-class difftraj_dataset(data.Dataset):
+class difftraj_dataset(diff_common):
     """
     for trajectory prediction:
         all args used are mainly store in `args`.
@@ -252,49 +271,8 @@ class difftraj_dataset(data.Dataset):
             self.win_size = self.args.p_len + self.args.f_len
         else:
             self.win_size = self.args.seq_len
-
-        self.lengths, self.data, self.styles, self.ctrl_data = load_from_jpkl(
-            self.args.train_data_path
-        )
-
-        self.style_str_to_onehot = torch.load(style_onehot_save_path)
-
-        # 35 is hard coded
-        self.lengths = [
-            self.lengths[idx] + 35 - self.win_size for idx in range(len(self.lengths))
-        ]
-
-        def relist_data(ds):
-            return [
-                ds[idx] for idx in range(len(self.lengths)) if self.lengths[idx] > 0
-            ]
-
-        self.data = relist_data(self.data)
-        self.styles = relist_data(self.styles)
-        self.ctrl_data = relist_data(self.ctrl_data)
-        self.lengths = relist_data(self.lengths)
-
-        self.cumsum = np.cumsum([0] + self.lengths)
-        print(f"data length: {len(self.data)}")
-        print(
-            "Total number of motions {}, snippets {}".format(
-                len(self.data), self.cumsum[-1]
-            )
-        )
-
-        # load mean std
-        train_mean_std = self.args.load_mean_path
-        print(f"load std mean from {train_mean_std}")
-
-        load_con = np.load(train_mean_std)
-        for k, v in load_con.items():
-            print(f"set key {k}, shape {v.shape}")
-            setattr(self, k, v)
-
-        if data_len := self.__len__() < 1:
-            raise Exception(f"Error data length.")
-
-        print(f"[DATA] {data_len=}")
+            
+        self.post_init()
 
     def __len__(self):
         return self.cumsum[-1]
@@ -367,12 +345,7 @@ class diffpose_dataset(data.Dataset):
         print(f"data shape: {self.data.shape}")
 
         train_mean_std = self.args.load_mean_path
-        load_con = np.load(train_mean_std)
-        print(f"load std mean from {train_mean_std}")
-        for k, v in load_con.items():
-            print(f"set key {k}, shape {v.shape}")
-            setattr(self, k, v)
-
+        load_var_from_npz_to_class(self, train_mean_std)
         self.keypoints_normalizer = Normalizer(None)
 
     def __len__(self):

@@ -9,12 +9,6 @@ from utils import dist_util
 import utils.rotation_conversions as geometry
 import sys
 
-sys.path.insert(0, "/apdcephfs/private_wallyliang/PLANT")
-from Thirdparty.GLAMR.traj_predx.models.all_utils import *
-from Thirdparty.GLAMR.traj_predx.models.traj_utils import *
-
-from data_loaders.humanml.scripts.motion_process import process_file
-
 
 def build_models(opt):
     if opt.text_enc_mod == "bigru":

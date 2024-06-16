@@ -256,7 +256,6 @@ python -m sample.generate_traj \
 
 这里提供了一个包装好的使用difftraj的接口，可以直接输入任意从 其他HPS方法得到的body pose，然后difftraj输出带有全局轨迹的motion。
 ```bash
-cd SMPLit
 python3 difftraj_entry.py \
 --inp assets/diftraj_demo/beat2_our_rot.npz \
 --flip_x --rot_deg -90
@@ -302,10 +301,11 @@ python -m train.train_main \
 --train_cmdm_base
 ```
 
-如何finetune
+如何finetune[not test]
 ```bash
+# --base_model: 继承的base model weight
 python -m train.train_main \
---base_model exps/loco_generation_fit_data/model000250000.pt \ # 继承的base model weight
+--base_model exps/loco_generation_fit_data/model000250000.pt \ 
 --save_dir exps/loco_generation_exp3 \
 --eval_during_training \
 --batch_size 512 \
@@ -314,17 +314,31 @@ python -m train.train_main \
 --diffusion_steps 8 
 ```
 
-Motion generation推理
+Autoregresssive Motion generation推理
 ```bash
 # visualize bast finetune model
+# --difine_traj: 参考infer代码，指定多种预设的轨迹
 python -m sample.generate_style \
---model_path exps/loco_generation_fit_data/model000602605.pt \
+--model_path exps/loco_generation_exp_100styles \
 --user_transl \
---difine_traj circle \ # 参考infer代码，指定多种预设的轨迹
+--difine_traj circle \
 --traj_rev_dir 0 \
 --traj_face_type 0 \
 --infer_step 3 \
---num_samples 1000 \
+--num_samples 10 \
+--gen_time_length 8 \
+--infer_walk_speed 0.8 \
+--vis_save_dir output/loco_gen_infer
+
+# inference finetuned model
+python -m sample.generate_style \
+--model_path exps/loco_generation_exp_100styles \
+--user_transl \
+--difine_traj circle \
+--traj_rev_dir 0 \
+--traj_face_type 0 \
+--infer_step 3 \
+--num_samples 10 \
 --gen_time_length 8 \
 --eval_cmdm_finetune \
 --infer_walk_speed 0.8 \
@@ -370,12 +384,13 @@ pip install -U imageio-ffmpeg
 pip install imgaug --index-url https://mirrors.tencent.com/pypi/simple/
 ```
 
-- 
-ax.lines = []
-AttributeError: can't set attribute
+- Issue: "ax.lines = []; AttributeError: can't set attribute"
 Solution:
+```bash
 pip install matplotlib==3.1.3 --index-url https://mirrors.tencent.com/pypi/simple/
+# 如果用以上的命令安装的时候没有预编译包而需要编译导致报错，则使用一下命令：
 pip install --only-binary :all: "matplotlib<=3.4.3"
+```
 
 ## Contact
 Please contact fthualinliang@scut.edu.cn for any questions related to this work.
