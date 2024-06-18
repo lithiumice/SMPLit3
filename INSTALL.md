@@ -23,7 +23,10 @@ sudo yum install git cmake gcc make autoconf automake libtool -y
 ```bash
 # Clone the repo
 git clone https://github.com/lithiumice/SMPLit --recursive
-git submodule update --init --recursive
+# git submodule update --init --recursive
+# or:
+git clone https://github.com/princeton-vl/DPVO.git third-party/DPVO/
+git clone https://github.com/ViTAE-Transformer/ViTPose.git third-party/ViTPose/
 
 wget "https://www.dropbox.com/scl/fi/uu87dq9g3wj7v0vejbu8m/models.tar.gz?rlkey=a6me2oodq9v9z7vq3oqoaxir6&st=knu4fgr7&dl=0" -O models.tar.gz 
 
@@ -118,15 +121,15 @@ rsync -av --exclude=.* \
 --exclude='tmp/' \
 --exclude='data/' \
 --exclude='*__pycache__*' \
-/apdcephfs/private_wallyliang/SMPLit \
+PATH_TO_SMPLit \
 /root/
 
 
-rsync -av --exclude=.* \
---exclude='tmp/' \
---exclude='data/' \
---exclude='*__pycache__*' \
-/apdcephfs/private_wallyliang/SMPLit \
-/root/
+# rsync -av --exclude=.* \
+# --exclude='tmp/' \
+# --exclude='data/' \
+# --exclude='*__pycache__*' \
+# PATH_TO_SMPLitit \
+# /root/
 ```
 

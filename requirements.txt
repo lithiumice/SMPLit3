@@ -1,4 +1,4 @@
-chumpy @ git+https://github.com/mattloper/chumpy
+# chumpy @ git+https://github.com/mattloper/chumpy
 numpy==1.22.3
 yacs
 joblib

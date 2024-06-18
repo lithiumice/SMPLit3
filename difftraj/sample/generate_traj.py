@@ -37,7 +37,7 @@ import ipdb
 
 def get_motion_clip_inp():
     print(f"set motionclip exmaple motion")
-    from data_loaders.humanml.data.dataset import smplh52_to_smpl24
+    from data_loaders.dataset import smplh52_to_smpl24
     from human_body_prior.body_model.body_model import BodyModel
     male_bm = BodyModel(
         bm_fname=male_bm_path,
@@ -292,7 +292,7 @@ if __name__ == "__main__":
                 
     if args.dataset == "diffgen":
     # ipdb.set_trace()
-        from data_loaders.humanml.data.dataset import (
+        from data_loaders.dataset import (
             transl_xy_to_tangent,
             traj2d_global_to_local,
             traj2d_local_to_global

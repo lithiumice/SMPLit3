@@ -860,11 +860,6 @@ if __name__ == "__main__":
         "--save_pkl", action="store_true", help="Save output as pkl file"
     )
 
-    parser.add_argument(
-        "--not_full_body",
-        action="store_true",
-        help="do not force filter out partial body frame.",
-    )
     parser.add_argument("--anno_pkl_path", type=str, default=None, help="deprecated.")
     parser.add_argument(
         "--use_smplx",
@@ -906,6 +901,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_opt_tmp", action="store_true", help="debug.")
     parser.add_argument("--opt_lr", type=float, default=1.0)
     parser.add_argument("--runing_fps", type=int, default=-1)
+    parser.add_argument("--min_det_joints", type=int, default=6, help="max: 16")
 
     # <==== AUTO
     parser.add_argument(

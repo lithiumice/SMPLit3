@@ -25,7 +25,6 @@ VIS_THRESH = 0.3
 BBOX_CONF = 0.5
 TRACKING_THR = 0.2
 MINIMUM_FRMAES = 30
-MINIMUM_JOINTS = 6
 from copy import deepcopy
 from loguru import logger
 import cv2
@@ -127,7 +126,6 @@ class Face_var_init_deca:
 class Face_var_init_smirk:
     def __init__(self):
         # SMIRK
-        # import ipdb;ipdb.set_trace()
         import sys
 
         sys.path.append(SMIRK_PATH)
@@ -135,11 +133,7 @@ class Face_var_init_smirk:
         from src.FLAME.FLAME import FLAME
         from src.renderer.renderer import Renderer
 
-        # import src.utils.masking as masking_utils
-        # from datasets.base_dataset import create_mask
-
         with path_enter(SMIRK_PATH):
-            # /is/cluster/fast/hyi/workspace/VidGen/Open-EMO/SMPLit/third-party/smirk/src/FLAME/../../../../model_files/smirk/FLAME2020/generic_model.pkl
             smirk_encoder = SmirkEncoder().to(device)
             checkpoint = torch.load("../../model_files/smirk/SMIRK_em1.pt")
             checkpoint_encoder = {
@@ -200,22 +194,22 @@ class Face_var_init_smirk:
 
         outputs = self.smirk_encoder(cropped_image)
 
-        # import ipdb;ipdb.set_trace()
-
-        # flame_output = self.flame.forward(outputs)
-        # renderer_output = self.renderer.forward(flame_output['vertices'], outputs['cam'],
-        #                                     landmarks_fan=flame_output['landmarks_fan'],
-        #                                     landmarks_mp=flame_output['landmarks_mp'])
-
-        # rendered_img = renderer_output['rendered_img']
-        # grid = torch.cat([cropped_image, rendered_img], dim=3)
-        # cv2.imwrite('test.png',(grid.detach()[0].permute(1,2,0).cpu().numpy()*255).astype(np.uint8))
-
         pose_result["smirk_exp"] = tonp(outputs["expression_params"].squeeze())
         pose_result["smirk_jaw"] = tonp(outputs["jaw_params"].squeeze())
         pose_result["smirk_shape"] = tonp(outputs["shape_params"].squeeze())
 
         return pose_result
+
+    def vis(self, outputs):
+        # import ipdb;ipdb.set_trace()
+        flame_output = self.flame.forward(outputs)
+        renderer_output = self.renderer.forward(flame_output['vertices'], outputs['cam'],
+                                            landmarks_fan=flame_output['landmarks_fan'],
+                                            landmarks_mp=flame_output['landmarks_mp'])
+
+        rendered_img = renderer_output['rendered_img']
+        grid = torch.cat([cropped_image, rendered_img], dim=3)
+        cv2.imwrite('test.png',(grid.detach()[0].permute(1,2,0).cpu().numpy()*255).astype(np.uint8))
 
 
 class Body_var_init_hmr2:
@@ -533,13 +527,7 @@ class DetectionModel(object):
     def __init__(self, device, args):
         self.args = args
 
-        global MINIMUM_JOINTS
-        if not self.args.not_full_body:
-            MINIMUM_JOINTS = 16
-        else:
-            MINIMUM_JOINTS = 6
-        print(f"WHAM MINIMUM_JOINTS: {MINIMUM_JOINTS}")
-        # import ipdb;ipdb.set_trace()
+        self.min_det_joints = self.args.min_det_joints
 
         self.var_initers = []
 
@@ -574,7 +562,7 @@ class DetectionModel(object):
             )
         else:
             # get face hands body kpts
-            from vitpose_model import ViTPoseModel
+            from lib.models.vitpose_model import ViTPoseModel
 
             self.cpm = ViTPoseModel("cuda", model_name=self.args.vitpose_model)
 
@@ -725,7 +713,7 @@ class DetectionModel(object):
 
         for pose_result in pose_results:
             n_valid = (pose_result["keypoints"][:, -1] > VIS_THRESH).sum()  # (17, 3)
-            if n_valid < MINIMUM_JOINTS:
+            if n_valid < self.min_det_joints:
                 continue
 
             _id = pose_result["track_id"]

@@ -15,6 +15,7 @@ ultimatevocalremover_api*
 *.pt
 *.pkl
 *.bin
+*.pyc
 
 body_templates
 glove
@@ -279,3 +280,4 @@ checkpoints
 
 wsl_script/
 model_files/
+lib/models/preproc/__pycache__/detector.cpython-39.pyc
