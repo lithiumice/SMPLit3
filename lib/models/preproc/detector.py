@@ -561,6 +561,18 @@ class DetectionModel(object):
                 "model_files/vitpose_ckpts/vitpose-h-multi-coco.pth",
                 device=device.lower(),
             )
+        elif self.args.vitpose_model == "mmpose":
+            """
+            Installation:
+                pip install -U openmim
+                mim install mmengine
+                mim install "mmcv>=2.0.1"
+                mim install "mmpose>=1.1.0"
+            """
+            from mmpose.apis import MMPoseInferencer
+            self.cpm = MMPoseInferencer(
+                "td-hm_hrnet-w48_dark-8xb32-210e_coco-384x288", device=device
+            )
         else:
             # get face hands body kpts
             from lib.models.vitpose_model import ViTPoseModel

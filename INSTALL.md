@@ -51,6 +51,9 @@ conda create -n smplit python=3.10 -y
 conda activate smplit
 
 # Install PyTorch libraries
+conda install pytorch=1.13 pytorch-cuda=12.1 torchvision torchaudio -c pytorch
+conda install pytorch==1.13.0 torchvision==0.14.0 torchaudio==0.13.0 pytorch-cuda=12.1 -c pytorch -c nvidia
+
 pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
 # conda install pytorch==1.12.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3 -c pytorch
 # pip install torch==1.13.0+cu117 torchvision==0.14.0+cu117 torchaudio==0.13.0 --extra-index-url https://download.pytorch.org/whl/cu117
