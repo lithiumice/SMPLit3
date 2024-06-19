@@ -280,4 +280,6 @@ checkpoints
 
 wsl_script/
 model_files/
+model_files_part/
 lib/models/preproc/__pycache__/detector.cpython-39.pyc
+ViTPose/

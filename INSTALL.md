@@ -46,13 +46,15 @@ trusted-host = mirrors.tencent.com
 
 # Create Conda environment
 source ~/miniconda3/bin/activate
-conda create -n smplit python=3.9 -y
+conda create -n smplit python=3.10 -y
 # Activate environment
 conda activate smplit
 
 # Install PyTorch libraries
-conda install pytorch==1.12.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3 -c pytorch
-pip install torch==1.13.0+cu117 torchvision==0.14.0+cu117 torchaudio==0.13.0 --extra-index-url https://download.pytorch.org/whl/cu117
+pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
+# conda install pytorch==1.12.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3 -c pytorch
+# pip install torch==1.13.0+cu117 torchvision==0.14.0+cu117 torchaudio==0.13.0 --extra-index-url https://download.pytorch.org/whl/cu117
+
 # test your torch installation
 python -c "import torch;print(torch.cuda.is_available());a=torch.zeros((1,1)).cuda()"
 
@@ -74,8 +76,10 @@ pip install -r third-party/4D-Humans/requirements.txt
 pip install -r third-party/smirk/requirements.txt
 # difftraj
 pip install -r difftraj/requirements.txt
+pip install -r third-party/NeMF/requirements.txt
 # others
 pip install chardet
+pip install numpy==1.23.0
 pip install 'git+https://github.com/openai/CLIP.git'
 pip install 'git+https://github.com/facebookresearch/detectron2.git'
 
@@ -94,10 +98,11 @@ conda install -c conda-forge gxx=9.5 -y
 module load cuda/11.3
 # install dpvo
 pip install .
-# install osmesa to use pyrender
-conda install -c conda-forge glew mesalib -y
-conda install -c menpo glfw3 -y
-conda install -c menpo osmesa -y
+
+# # install osmesa to use pyrender
+# conda install -c conda-forge glew mesalib -y
+# conda install -c menpo glfw3 -y
+# conda install -c menpo osmesa -y
 
 # test osmesa installation
 python -c "import pyrender"

@@ -32,6 +32,7 @@ import cv2
 from skimage.transform import estimate_transform, warp, resize, rescale
 from smirk.utils.mediapipe_utils import Mediapipe_detector, crop_face
 from lib.loco.trajdiff import *
+import ipdb
 
 SMPLERX_PATH = "/apdcephfs/private_wallyliang/MotionCaption"
 HAMER_PATH = "third-party/hamer"
@@ -682,6 +683,7 @@ class DetectionModel(object):
 
             for idx in range(len(pose_results)):
                 kp = pose_results[idx]["keypoints"]  # 133
+                ipdb.set_trace()
                 pose_results[idx]["left_hand_keyp"] = kp[-42:-21].copy()  # 21
                 pose_results[idx]["right_hand_keyp"] = kp[-21:].copy()
                 pose_results[idx]["face_keyp"] = kp[23 : 23 + 68, :].copy()  # 68
