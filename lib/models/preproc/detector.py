@@ -11,12 +11,6 @@ import scipy.signal as signal
 from progress.bar import Bar
 
 from ultralytics import YOLO
-from mmpose.apis import (
-    inference_top_down_pose_model,
-    init_pose_model,
-    get_track_id,
-    vis_pose_result,
-)
 
 ROOT_DIR = osp.abspath(f"{__file__}/../../../../")
 VIT_DIR = osp.join(ROOT_DIR, "third-party/ViTPose")
@@ -157,13 +151,13 @@ class Face_var_init_smirk:
         self.vars_to_save = ["smirk_exp", "smirk_jaw", "smirk_shape"]
         logger.debug("SMIRK")
 
-    def get_result(self, xyxy, img, pose_result):
+    def get_result(self, xyxy, img, pose_result, use_mp_det=False):
         left, top, right, bottom = list(map(int, xyxy[:4]))
         image = img[top:bottom, left:right, :]
 
-        if 1:
+        if not use_mp_det:
             left, top, right, bottom = list(xyxy[:4])
-            tmp = pose_result["face_keyp"]
+            tmp = deepcopy(pose_result["face_keyp"])
             tmp[:, 0] -= left
             tmp[:, 1] -= top
             kpt_mediapipe = tmp
@@ -524,6 +518,7 @@ class Hand_var_init_acr:
         return pose_result
 
 
+
 class DetectionModel(object):
     def __init__(self, device, args):
         self.args = args
@@ -553,6 +548,8 @@ class DetectionModel(object):
         # ViTPose
         if self.args.vitpose_model == "body_only":
             # body only
+            from mmpose.apis import init_pose_model
+    
             self.pose_model = init_pose_model(
                 osp.join(
                     VIT_DIR,
@@ -565,15 +562,18 @@ class DetectionModel(object):
             """
             Installation:
                 pip install -U openmim
-                mim install mmengine
-                mim install "mmcv>=2.0.1"
-                mim install "mmpose>=1.1.0"
+                pip install mmengine
+                # pip install "mmcv>=2.0.1"
+                pip install mmcv==2.1.0 -f https://download.openmmlab.com/mmcv/dist/cu121/torch2.1/index.html
+                pip install "mmpose>=1.1.0"
+                pip install "mmdet>=3.1.0"
             """
             from mmpose.apis import MMPoseInferencer
             self.cpm = MMPoseInferencer(
-                "td-hm_hrnet-w48_dark-8xb32-210e_coco-384x288", device=device
+                pose2d ="pretrained_weights/mmpose/rtmw-x_8xb704-270e_cocktail14-256x192.py",
+                pose2d_weights ="pretrained_weights/mmpose/rtmw-x_simcc-cocktail14_pt-ucoco_270e-256x192-13a2546d_20231208.pth",
+                device=device,
             )
-            # 
         else:
             # get face hands body kpts
             from lib.models.vitpose_model import ViTPoseModel
@@ -667,10 +667,13 @@ class DetectionModel(object):
             )
             bboxes = [{"bbox": bbox} for bbox in bboxes]
             # bboxes might be empty
-
+            
+            
+        # ipdb.set_trace()
         if self.args.vitpose_model == "body_only":
             # keypoints detection
-            pose_results, returned_outputs = inference_top_down_pose_model(
+            from mmpose.apis import inference_top_down_pose_model
+            pose_results, _ = inference_top_down_pose_model(
                 self.pose_model,
                 img,
                 person_results=bboxes,
@@ -678,6 +681,55 @@ class DetectionModel(object):
                 return_heatmap=False,
                 outputs=None,
             )
+        elif self.args.vitpose_model == "mmpose":
+            if len(bboxes) > 0:
+                predictions = next(self.cpm(img, bboxes, format='xyxy'))["predictions"]
+                
+                pose_results = []
+                prediction = predictions[0] # one frame
+                
+                for idx in range(len(prediction.pred_instances.keypoints)):
+                    kpts_info = {
+                        "keypoints": np.concatenate(
+                            [
+                                np.array(prediction.pred_instances.keypoints[idx]),
+                                np.array(prediction.pred_instances.keypoint_scores)[idx][..., None],
+                            ],
+                            axis=-1,
+                        ),
+                        "bbox": prediction.pred_instances.bboxes[idx]
+                    }
+                    pose_results.append(kpts_info)
+                
+                # kpts_N_133_3 = np.stack(
+                #     [
+                #         np.concatenate(
+                #             [
+                #                 np.array(prediction.pred_instances.keypoints),
+                #                 np.array(prediction.pred_instances.keypoint_scores)[..., None],
+                #             ],
+                #             axis=-1,
+                #         )
+                #         for prediction in predictions
+                #     ],
+                #     axis=0,
+                # )# (n_frames, n_persons, 17=n_kpts, 3)          
+                # tmp = kpts_N_133_3[0,:,:,:]
+                # pose_results = [
+                #     {
+                #         "keypoints": tmp[idx]
+                #     } for idx in range(len(tmp))
+                # ]
+            else:
+                pose_results = []
+                
+                            
+            for idx in range(len(pose_results)):
+                kp = pose_results[idx]["keypoints"]  # 133, n?
+                pose_results[idx]["left_hand_keyp"] = kp[-42:-21].copy()  # 21
+                pose_results[idx]["right_hand_keyp"] = kp[-21:].copy()
+                pose_results[idx]["face_keyp"] = kp[23 : 23 + 68, :].copy()  # 68
+                pose_results[idx]["keypoints"] = kp[:17]            
         else:
             # Detect human keypoints for each person
             if len(bboxes) > 0:
@@ -695,13 +747,13 @@ class DetectionModel(object):
                 pose_results = []
 
             for idx in range(len(pose_results)):
-                kp = pose_results[idx]["keypoints"]  # 133
-                # ipdb.set_trace()
+                kp = pose_results[idx]["keypoints"]  # 133, n?
                 pose_results[idx]["left_hand_keyp"] = kp[-42:-21].copy()  # 21
                 pose_results[idx]["right_hand_keyp"] = kp[-21:].copy()
                 pose_results[idx]["face_keyp"] = kp[23 : 23 + 68, :].copy()  # 68
                 pose_results[idx]["keypoints"] = kp[:17]
 
+        # import ipdb;ipdb.set_trace()
         # person identification
         tracking_thr = TRACKING_THR
         if scene_change_pos is not None:
@@ -716,6 +768,14 @@ class DetectionModel(object):
                 pose_results = pose_results[:1]
                 pose_results[0]["track_id"] = 0
         else:
+            # mmpose 0.24.0 api
+            # now mmpose is 1.3.0
+            # from mmpose.apis import (
+            #     get_track_id,
+            #     vis_pose_result,
+            # )
+            from lib.models.preproc.inference_tracking import get_track_id
+            
             pose_results, self.next_id = get_track_id(
                 pose_results,
                 self.pose_results_last,
