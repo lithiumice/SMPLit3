@@ -99,10 +99,10 @@ module load cuda/11.3
 # install dpvo
 pip install .
 
-# # install osmesa to use pyrender
-# conda install -c conda-forge glew mesalib -y
-# conda install -c menpo glfw3 -y
-# conda install -c menpo osmesa -y
+# install osmesa to use pyrender
+conda install -c conda-forge glew mesalib -y
+conda install -c menpo glfw3 -y
+conda install -c menpo osmesa -y
 
 # test osmesa installation
 python -c "import pyrender"
@@ -110,9 +110,7 @@ python -c "import pyrender"
 # prepare data for hmr
 mkdir -p /root/.cache/4DHumans/
 mkdir -p /root/.cache/4DHumans/data/smpl/
-cp model_files/uhc_data/smpl/basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl /root/.cache/4DHumans/data/smpl/SMPL_NEUTRAL.pkl
-cp model_files/uhc_data/smpl/basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl /home/hyi/.cache/4DHumans/data/smpl/SMPL_NEUTRAL.pkl
-cp /apdcephfs/private_wallyliang/hmr2_data.tar.gz /root/.cache/4DHumans/hmr2_data.tar.gz
+cp model_files/uhc_data/smpl/basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl ~/.cache/4DHumans/data/smpl/SMPL_NEUTRAL.pkl
 
 # pip install mmcv-full==1.3.17 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.12.0/index.html
 ```

@@ -247,7 +247,7 @@ class Body_var_init_hmr2:
             DEFAULT_MEAN,
             DEFAULT_STD,
         )
-        from hmr2.utils.renderer import Renderer, cam_crop_to_full
+        # from hmr2.utils.renderer import Renderer, cam_crop_to_full
 
         # Run HMR2.0 on all detected humans
         dataset = ViTDetDataset(self.hmr2_model_cfg, img, xyxy[:4][None])
@@ -267,14 +267,14 @@ class Body_var_init_hmr2:
                     / self.hmr2_model_cfg.MODEL.IMAGE_SIZE
                     * img_size.max()
                 )
-                pred_cam_t_full = (
-                    cam_crop_to_full(
-                        pred_cam, box_center, box_size, img_size, scaled_focal_length
-                    )
-                    .detach()
-                    .cpu()
-                    .numpy()
-                )
+                # pred_cam_t_full = (
+                #     cam_crop_to_full(
+                #         pred_cam, box_center, box_size, img_size, scaled_focal_length
+                #     )
+                #     .detach()
+                #     .cpu()
+                #     .numpy()
+                # )
 
                 pose_result["hmr_orient"] = tonp(
                     m2a(out["pred_smpl_params"]["global_orient"][0])
@@ -286,7 +286,7 @@ class Body_var_init_hmr2:
                     out["pred_smpl_params"]["betas"]
                 )  # 1,10
                 pose_result["hmr_pred_cam"] = tonp(pred_cam)
-                pose_result["hmr_cam_full"] = pred_cam_t_full
+                # pose_result["hmr_cam_full"] = pred_cam_t_full
 
         return pose_result
 
@@ -514,7 +514,7 @@ class Hand_var_init_acr:
             single_img_input=True,
         )
         meta_data["batch_ids"] = torch.arange(len(meta_data["image"]))
-        outputs = self.acr_model(meta_data, **{"mode": "parsing", "calc_loss": False})
+        outputs = self.acr_model(meta_data=meta_data, **{"mode": "parsing", "calc_loss": False})
         # outputs['detection_flag']
         # outputs = self.mano_regression(outputs, outputs['meta_data'])
         # outputs['params_dict']['poses'][sid], outputs['params_dict']['betas'][sid]
@@ -683,7 +683,7 @@ class DetectionModel(object):
 
             for idx in range(len(pose_results)):
                 kp = pose_results[idx]["keypoints"]  # 133
-                ipdb.set_trace()
+                # ipdb.set_trace()
                 pose_results[idx]["left_hand_keyp"] = kp[-42:-21].copy()  # 21
                 pose_results[idx]["right_hand_keyp"] = kp[-21:].copy()
                 pose_results[idx]["face_keyp"] = kp[23 : 23 + 68, :].copy()  # 68
