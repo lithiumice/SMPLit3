@@ -34,7 +34,7 @@ from lib.loco.trajdiff import (
     a2m,
     m2s,
 )
-from data_loaders.humanml.data.dataset import traj2d_global_to_local
+from data_loaders.dataset import traj2d_global_to_local
 
 from human_body_prior.body_model.body_model import BodyModel
 from human_body_prior.tools.omni_tools import copy2cpu as c2c
@@ -51,8 +51,8 @@ def norm_glamr_traj(local_traj):
     return local_traj
 
 
-cut_frames_info = pandas.read_csv("dataset/100styles_meta_Frame_Cuts.csv")
-AMASS_OCC_META_PATH = "amass_copycat_occlusion_v3.pkl"
+cut_frames_info = pandas.read_csv("assets/100styles_meta_Frame_Cuts.csv")
+AMASS_OCC_META_PATH = "assets/amass_copycat_occlusion_v3.pkl"
 amass_occlusion = joblib.load(AMASS_OCC_META_PATH)
 
 

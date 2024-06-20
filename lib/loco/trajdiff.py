@@ -16,7 +16,7 @@ from loguru import logger
 from difftraj.utils.model_util import create_gaussian_diffusion
 from difftraj.data_loaders.get_data import get_model_args, collate
 from difftraj.utils.model_util import create_model_and_diffusion, load_model_wo_clip
-from difftraj.model.mdm_traj import MDM
+from difftraj.model.difftraj_model import MDM
 from difftraj.model.cfg_sampler import ClassifierFreeSampleModel
 
 

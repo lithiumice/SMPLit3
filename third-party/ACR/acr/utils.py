@@ -1,5 +1,5 @@
 # encoding=utf-8
-import h5py
+
 import torch
 import numpy as np
 import json
@@ -250,6 +250,7 @@ def save_h5(info, name):
     check_file_and_remake(name.replace(os.path.basename(name), ""))
     if name[-3:] != ".h5":
         name += ".h5"
+    import h5py
     f = h5py.File(name, "w")
     for item, value in info.items():
         f[item] = value
@@ -259,6 +260,7 @@ def save_h5(info, name):
 def read_h5(name):
     if name[-3:] != ".h5":
         name += ".h5"
+    import h5py
     f = h5py.File(name, "r")
     info = {}
     for item, value in f.items():

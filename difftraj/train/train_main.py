@@ -52,19 +52,19 @@ def main():
 
     print("creating model and diffusion...")
     if args.dataset == "difftraj":
-        from model.mdm_traj import MDM
+        from model.difftraj_model import MDM
 
         model = MDM(**get_model_args(args, data))
     elif args.dataset == "diffpose":
-        from model.model_diffpose import MODEL_DIFFPOSE
+        from model.difftraj_model import MODEL_DIFFPOSE
 
         model = MODEL_DIFFPOSE(**get_model_args(args, data))
     elif args.dataset == "diffgen":
-        from model.mdm_taming_style import MDM
+        from model.diffgen_model import MDM
 
         model = MDM(**get_model_args(args, data), inp_len=data.dataset.t2m_dataset.inp_len)
     elif args.dataset == "diffgen_cmdm":
-        from model.cmdm_style import MDM
+        from model.diffgen_cmdm import MDM
 
         model = MDM(**get_model_args(args, data), inp_len=data.dataset.t2m_dataset.inp_len)
         

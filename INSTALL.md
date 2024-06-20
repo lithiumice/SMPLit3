@@ -23,7 +23,10 @@ sudo yum install git cmake gcc make autoconf automake libtool -y
 ```bash
 # Clone the repo
 git clone https://github.com/lithiumice/SMPLit --recursive
-git submodule update --init --recursive
+# git submodule update --init --recursive
+# or:
+git clone https://github.com/princeton-vl/DPVO.git third-party/DPVO/
+git clone https://github.com/ViTAE-Transformer/ViTPose.git third-party/ViTPose/
 
 wget "https://www.dropbox.com/scl/fi/uu87dq9g3wj7v0vejbu8m/models.tar.gz?rlkey=a6me2oodq9v9z7vq3oqoaxir6&st=knu4fgr7&dl=0" -O models.tar.gz 
 
@@ -43,13 +46,18 @@ trusted-host = mirrors.tencent.com
 
 # Create Conda environment
 source ~/miniconda3/bin/activate
-conda create -n smplit python=3.9 -y
+conda create -n smplit python=3.10 -y
 # Activate environment
 conda activate smplit
 
 # Install PyTorch libraries
-conda install pytorch==1.12.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3 -c pytorch
-pip install torch==1.13.0+cu117 torchvision==0.14.0+cu117 torchaudio==0.13.0 --extra-index-url https://download.pytorch.org/whl/cu117
+conda install pytorch=1.13 pytorch-cuda=12.1 torchvision torchaudio -c pytorch
+conda install pytorch==1.13.0 torchvision==0.14.0 torchaudio==0.13.0 pytorch-cuda=12.1 -c pytorch -c nvidia
+
+pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
+# conda install pytorch==1.12.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3 -c pytorch
+# pip install torch==1.13.0+cu117 torchvision==0.14.0+cu117 torchaudio==0.13.0 --extra-index-url https://download.pytorch.org/whl/cu117
+
 # test your torch installation
 python -c "import torch;print(torch.cuda.is_available());a=torch.zeros((1,1)).cuda()"
 
@@ -71,8 +79,10 @@ pip install -r third-party/4D-Humans/requirements.txt
 pip install -r third-party/smirk/requirements.txt
 # difftraj
 pip install -r difftraj/requirements.txt
+pip install -r third-party/NeMF/requirements.txt
 # others
 pip install chardet
+pip install numpy==1.23.0
 pip install 'git+https://github.com/openai/CLIP.git'
 pip install 'git+https://github.com/facebookresearch/detectron2.git'
 
@@ -91,6 +101,7 @@ conda install -c conda-forge gxx=9.5 -y
 module load cuda/11.3
 # install dpvo
 pip install .
+
 # install osmesa to use pyrender
 conda install -c conda-forge glew mesalib -y
 conda install -c menpo glfw3 -y
@@ -102,11 +113,17 @@ python -c "import pyrender"
 # prepare data for hmr
 mkdir -p /root/.cache/4DHumans/
 mkdir -p /root/.cache/4DHumans/data/smpl/
-cp model_files/uhc_data/smpl/basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl /root/.cache/4DHumans/data/smpl/SMPL_NEUTRAL.pkl
-cp model_files/uhc_data/smpl/basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl /home/hyi/.cache/4DHumans/data/smpl/SMPL_NEUTRAL.pkl
-cp /apdcephfs/private_wallyliang/hmr2_data.tar.gz /root/.cache/4DHumans/hmr2_data.tar.gz
+cp model_files/uhc_data/smpl/basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl ~/.cache/4DHumans/data/smpl/SMPL_NEUTRAL.pkl
 
 # pip install mmcv-full==1.3.17 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.12.0/index.html
+```
+
+download mmpose weight:
+```bash
+mkdir -p pretrained_weights/mmpose
+wget "https://github.com/open-mmlab/mmpose/blob/main/configs/wholebody_2d_keypoint/rtmpose/cocktail14/rtmw-x_8xb704-270e_cocktail14-256x192.py" -O pretrained_weights/mmpose/rtmw-x_8xb704-270e_cocktail14-256x192.py
+wget "https://download.openmmlab.com/mmpose/v1/projects/rtmw/rtmw-x_simcc-cocktail14_pt-ucoco_270e-256x192-13a2546d_20231208.pth" -O pretrained_weights/mmpose/rtmw-x_simcc-cocktail14_pt-ucoco_270e-256x192-13a2546d_20231208.pth
+
 ```
 
 sync the changes from private disk to docker.
@@ -118,15 +135,15 @@ rsync -av --exclude=.* \
 --exclude='tmp/' \
 --exclude='data/' \
 --exclude='*__pycache__*' \
-/apdcephfs/private_wallyliang/SMPLit \
+PATH_TO_SMPLit \
 /root/
 
 
-rsync -av --exclude=.* \
---exclude='tmp/' \
---exclude='data/' \
---exclude='*__pycache__*' \
-/apdcephfs/private_wallyliang/SMPLit \
-/root/
+# rsync -av --exclude=.* \
+# --exclude='tmp/' \
+# --exclude='data/' \
+# --exclude='*__pycache__*' \
+# PATH_TO_SMPLitit \
+# /root/
 ```
 

@@ -78,11 +78,11 @@ class TrainLoop:
             if self.args.use_siddms_gan:
                 self.args.lr_d = 1e-5
                 self.lr = 1e-5
-                from model.mdm_taming_style import GANDiscriminatorSIDDMS
+                from model.diffgen_model import GANDiscriminatorSIDDMS
 
                 self.netD = GANDiscriminatorSIDDMS().cuda()
             else:
-                from model.mdm_taming_style import GANDiscriminator
+                from model.diffgen_model import GANDiscriminator
 
                 self.netD = GANDiscriminator().cuda()
             self.optimizerD = torch.optim.AdamW(

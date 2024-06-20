@@ -1,4 +1,4 @@
-from model.mdm import MDM
+
 from diffusion import gaussian_diffusion as gd
 from diffusion.respace import SpacedDiffusion, space_timesteps
 from data_loaders.get_data import get_model_args, collate
@@ -14,6 +14,7 @@ def load_model_wo_clip(model, state_dict):
 
 
 def create_model_and_diffusion(args, data):
+    from model.mdm import MDM
     model = MDM(**get_model_args(args, data))
     diffusion = create_gaussian_diffusion(args)
     return model, diffusion

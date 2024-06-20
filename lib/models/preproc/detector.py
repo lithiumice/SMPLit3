@@ -11,12 +11,6 @@ import scipy.signal as signal
 from progress.bar import Bar
 
 from ultralytics import YOLO
-from mmpose.apis import (
-    inference_top_down_pose_model,
-    init_pose_model,
-    get_track_id,
-    vis_pose_result,
-)
 
 ROOT_DIR = osp.abspath(f"{__file__}/../../../../")
 VIT_DIR = osp.join(ROOT_DIR, "third-party/ViTPose")
@@ -25,7 +19,6 @@ VIS_THRESH = 0.3
 BBOX_CONF = 0.5
 TRACKING_THR = 0.2
 MINIMUM_FRMAES = 30
-MINIMUM_JOINTS = 6
 from copy import deepcopy
 from loguru import logger
 import cv2
@@ -33,6 +26,7 @@ import cv2
 from skimage.transform import estimate_transform, warp, resize, rescale
 from smirk.utils.mediapipe_utils import Mediapipe_detector, crop_face
 from lib.loco.trajdiff import *
+import ipdb
 
 SMPLERX_PATH = "/apdcephfs/private_wallyliang/MotionCaption"
 HAMER_PATH = "third-party/hamer"
@@ -127,7 +121,6 @@ class Face_var_init_deca:
 class Face_var_init_smirk:
     def __init__(self):
         # SMIRK
-        # import ipdb;ipdb.set_trace()
         import sys
 
         sys.path.append(SMIRK_PATH)
@@ -135,11 +128,7 @@ class Face_var_init_smirk:
         from src.FLAME.FLAME import FLAME
         from src.renderer.renderer import Renderer
 
-        # import src.utils.masking as masking_utils
-        # from datasets.base_dataset import create_mask
-
         with path_enter(SMIRK_PATH):
-            # /is/cluster/fast/hyi/workspace/VidGen/Open-EMO/SMPLit/third-party/smirk/src/FLAME/../../../../model_files/smirk/FLAME2020/generic_model.pkl
             smirk_encoder = SmirkEncoder().to(device)
             checkpoint = torch.load("../../model_files/smirk/SMIRK_em1.pt")
             checkpoint_encoder = {
@@ -162,13 +151,13 @@ class Face_var_init_smirk:
         self.vars_to_save = ["smirk_exp", "smirk_jaw", "smirk_shape"]
         logger.debug("SMIRK")
 
-    def get_result(self, xyxy, img, pose_result):
+    def get_result(self, xyxy, img, pose_result, use_mp_det=False):
         left, top, right, bottom = list(map(int, xyxy[:4]))
         image = img[top:bottom, left:right, :]
 
-        if 1:
+        if not use_mp_det:
             left, top, right, bottom = list(xyxy[:4])
-            tmp = pose_result["face_keyp"]
+            tmp = deepcopy(pose_result["face_keyp"])
             tmp[:, 0] -= left
             tmp[:, 1] -= top
             kpt_mediapipe = tmp
@@ -200,22 +189,22 @@ class Face_var_init_smirk:
 
         outputs = self.smirk_encoder(cropped_image)
 
-        # import ipdb;ipdb.set_trace()
-
-        # flame_output = self.flame.forward(outputs)
-        # renderer_output = self.renderer.forward(flame_output['vertices'], outputs['cam'],
-        #                                     landmarks_fan=flame_output['landmarks_fan'],
-        #                                     landmarks_mp=flame_output['landmarks_mp'])
-
-        # rendered_img = renderer_output['rendered_img']
-        # grid = torch.cat([cropped_image, rendered_img], dim=3)
-        # cv2.imwrite('test.png',(grid.detach()[0].permute(1,2,0).cpu().numpy()*255).astype(np.uint8))
-
         pose_result["smirk_exp"] = tonp(outputs["expression_params"].squeeze())
         pose_result["smirk_jaw"] = tonp(outputs["jaw_params"].squeeze())
         pose_result["smirk_shape"] = tonp(outputs["shape_params"].squeeze())
 
         return pose_result
+
+    def vis(self, outputs):
+        # import ipdb;ipdb.set_trace()
+        flame_output = self.flame.forward(outputs)
+        renderer_output = self.renderer.forward(flame_output['vertices'], outputs['cam'],
+                                            landmarks_fan=flame_output['landmarks_fan'],
+                                            landmarks_mp=flame_output['landmarks_mp'])
+
+        rendered_img = renderer_output['rendered_img']
+        grid = torch.cat([cropped_image, rendered_img], dim=3)
+        cv2.imwrite('test.png',(grid.detach()[0].permute(1,2,0).cpu().numpy()*255).astype(np.uint8))
 
 
 class Body_var_init_hmr2:
@@ -252,7 +241,7 @@ class Body_var_init_hmr2:
             DEFAULT_MEAN,
             DEFAULT_STD,
         )
-        from hmr2.utils.renderer import Renderer, cam_crop_to_full
+        # from hmr2.utils.renderer import Renderer, cam_crop_to_full
 
         # Run HMR2.0 on all detected humans
         dataset = ViTDetDataset(self.hmr2_model_cfg, img, xyxy[:4][None])
@@ -272,14 +261,14 @@ class Body_var_init_hmr2:
                     / self.hmr2_model_cfg.MODEL.IMAGE_SIZE
                     * img_size.max()
                 )
-                pred_cam_t_full = (
-                    cam_crop_to_full(
-                        pred_cam, box_center, box_size, img_size, scaled_focal_length
-                    )
-                    .detach()
-                    .cpu()
-                    .numpy()
-                )
+                # pred_cam_t_full = (
+                #     cam_crop_to_full(
+                #         pred_cam, box_center, box_size, img_size, scaled_focal_length
+                #     )
+                #     .detach()
+                #     .cpu()
+                #     .numpy()
+                # )
 
                 pose_result["hmr_orient"] = tonp(
                     m2a(out["pred_smpl_params"]["global_orient"][0])
@@ -291,7 +280,7 @@ class Body_var_init_hmr2:
                     out["pred_smpl_params"]["betas"]
                 )  # 1,10
                 pose_result["hmr_pred_cam"] = tonp(pred_cam)
-                pose_result["hmr_cam_full"] = pred_cam_t_full
+                # pose_result["hmr_cam_full"] = pred_cam_t_full
 
         return pose_result
 
@@ -519,7 +508,7 @@ class Hand_var_init_acr:
             single_img_input=True,
         )
         meta_data["batch_ids"] = torch.arange(len(meta_data["image"]))
-        outputs = self.acr_model(meta_data, **{"mode": "parsing", "calc_loss": False})
+        outputs = self.acr_model(meta_data=meta_data, **{"mode": "parsing", "calc_loss": False})
         # outputs['detection_flag']
         # outputs = self.mano_regression(outputs, outputs['meta_data'])
         # outputs['params_dict']['poses'][sid], outputs['params_dict']['betas'][sid]
@@ -529,17 +518,12 @@ class Hand_var_init_acr:
         return pose_result
 
 
+
 class DetectionModel(object):
     def __init__(self, device, args):
         self.args = args
 
-        global MINIMUM_JOINTS
-        if not self.args.not_full_body:
-            MINIMUM_JOINTS = 16
-        else:
-            MINIMUM_JOINTS = 6
-        print(f"WHAM MINIMUM_JOINTS: {MINIMUM_JOINTS}")
-        # import ipdb;ipdb.set_trace()
+        self.min_det_joints = self.args.min_det_joints
 
         self.var_initers = []
 
@@ -564,6 +548,8 @@ class DetectionModel(object):
         # ViTPose
         if self.args.vitpose_model == "body_only":
             # body only
+            from mmpose.apis import init_pose_model
+    
             self.pose_model = init_pose_model(
                 osp.join(
                     VIT_DIR,
@@ -572,9 +558,25 @@ class DetectionModel(object):
                 "model_files/vitpose_ckpts/vitpose-h-multi-coco.pth",
                 device=device.lower(),
             )
+        elif self.args.vitpose_model == "mmpose":
+            """
+            Installation:
+                pip install -U openmim
+                pip install mmengine
+                # pip install "mmcv>=2.0.1"
+                pip install mmcv==2.1.0 -f https://download.openmmlab.com/mmcv/dist/cu121/torch2.1/index.html
+                pip install "mmpose>=1.1.0"
+                pip install "mmdet>=3.1.0"
+            """
+            from mmpose.apis import MMPoseInferencer
+            self.cpm = MMPoseInferencer(
+                pose2d ="pretrained_weights/mmpose/rtmw-x_8xb704-270e_cocktail14-256x192.py",
+                pose2d_weights ="pretrained_weights/mmpose/rtmw-x_simcc-cocktail14_pt-ucoco_270e-256x192-13a2546d_20231208.pth",
+                device=device,
+            )
         else:
             # get face hands body kpts
-            from vitpose_model import ViTPoseModel
+            from lib.models.vitpose_model import ViTPoseModel
 
             self.cpm = ViTPoseModel("cuda", model_name=self.args.vitpose_model)
 
@@ -665,10 +667,13 @@ class DetectionModel(object):
             )
             bboxes = [{"bbox": bbox} for bbox in bboxes]
             # bboxes might be empty
-
+            
+            
+        # ipdb.set_trace()
         if self.args.vitpose_model == "body_only":
             # keypoints detection
-            pose_results, returned_outputs = inference_top_down_pose_model(
+            from mmpose.apis import inference_top_down_pose_model
+            pose_results, _ = inference_top_down_pose_model(
                 self.pose_model,
                 img,
                 person_results=bboxes,
@@ -676,6 +681,55 @@ class DetectionModel(object):
                 return_heatmap=False,
                 outputs=None,
             )
+        elif self.args.vitpose_model == "mmpose":
+            if len(bboxes) > 0:
+                predictions = next(self.cpm(img, bboxes, format='xyxy'))["predictions"]
+                
+                pose_results = []
+                prediction = predictions[0] # one frame
+                
+                for idx in range(len(prediction.pred_instances.keypoints)):
+                    kpts_info = {
+                        "keypoints": np.concatenate(
+                            [
+                                np.array(prediction.pred_instances.keypoints[idx]),
+                                np.array(prediction.pred_instances.keypoint_scores)[idx][..., None],
+                            ],
+                            axis=-1,
+                        ),
+                        "bbox": prediction.pred_instances.bboxes[idx]
+                    }
+                    pose_results.append(kpts_info)
+                
+                # kpts_N_133_3 = np.stack(
+                #     [
+                #         np.concatenate(
+                #             [
+                #                 np.array(prediction.pred_instances.keypoints),
+                #                 np.array(prediction.pred_instances.keypoint_scores)[..., None],
+                #             ],
+                #             axis=-1,
+                #         )
+                #         for prediction in predictions
+                #     ],
+                #     axis=0,
+                # )# (n_frames, n_persons, 17=n_kpts, 3)          
+                # tmp = kpts_N_133_3[0,:,:,:]
+                # pose_results = [
+                #     {
+                #         "keypoints": tmp[idx]
+                #     } for idx in range(len(tmp))
+                # ]
+            else:
+                pose_results = []
+                
+                            
+            for idx in range(len(pose_results)):
+                kp = pose_results[idx]["keypoints"]  # 133, n?
+                pose_results[idx]["left_hand_keyp"] = kp[-42:-21].copy()  # 21
+                pose_results[idx]["right_hand_keyp"] = kp[-21:].copy()
+                pose_results[idx]["face_keyp"] = kp[23 : 23 + 68, :].copy()  # 68
+                pose_results[idx]["keypoints"] = kp[:17]            
         else:
             # Detect human keypoints for each person
             if len(bboxes) > 0:
@@ -693,12 +747,13 @@ class DetectionModel(object):
                 pose_results = []
 
             for idx in range(len(pose_results)):
-                kp = pose_results[idx]["keypoints"]  # 133
+                kp = pose_results[idx]["keypoints"]  # 133, n?
                 pose_results[idx]["left_hand_keyp"] = kp[-42:-21].copy()  # 21
                 pose_results[idx]["right_hand_keyp"] = kp[-21:].copy()
                 pose_results[idx]["face_keyp"] = kp[23 : 23 + 68, :].copy()  # 68
                 pose_results[idx]["keypoints"] = kp[:17]
 
+        # import ipdb;ipdb.set_trace()
         # person identification
         tracking_thr = TRACKING_THR
         if scene_change_pos is not None:
@@ -713,6 +768,14 @@ class DetectionModel(object):
                 pose_results = pose_results[:1]
                 pose_results[0]["track_id"] = 0
         else:
+            # mmpose 0.24.0 api
+            # now mmpose is 1.3.0
+            # from mmpose.apis import (
+            #     get_track_id,
+            #     vis_pose_result,
+            # )
+            from lib.models.preproc.inference_tracking import get_track_id
+            
             pose_results, self.next_id = get_track_id(
                 pose_results,
                 self.pose_results_last,
@@ -725,7 +788,7 @@ class DetectionModel(object):
 
         for pose_result in pose_results:
             n_valid = (pose_result["keypoints"][:, -1] > VIS_THRESH).sum()  # (17, 3)
-            if n_valid < MINIMUM_JOINTS:
+            if n_valid < self.min_det_joints:
                 continue
 
             _id = pose_result["track_id"]

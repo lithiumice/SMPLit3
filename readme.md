@@ -58,13 +58,25 @@ Important! You have to activate conda environment before runing inference:
 ```bash
 source ~/miniconda3/bin/activate
 conda activate smplit
+
+# for rendering on server
+export PYOPENGL_PLATFORM=osmesa
+# if you met hmr home error
+# export HOME=/root 
+
+# use this to enable network on devcloud
+export https_proxy=
+export http_proxy=
 ```
 
 Then run:
 
 ```bash
 # Please refer to testbench.py
-# or run python3 testbench_v100.py
+# or run:
+# python3 testbench_v100.py
+# python3 testbench.py
+
 from main.mocap import init_model, mocap
 
 input_video_path = 'data/test.mp4'

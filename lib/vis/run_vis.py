@@ -309,16 +309,16 @@ def run_vis_on_demo(
         # build default camera
         default_R, default_T = torch.eye(3), torch.zeros(3)
 
-        # imageio_mp4_cfg = dict(
-        #     fps=fps, mode='I', format='FFMPEG', macro_block_size=1
-        # )
+        imageio_mp4_cfg = dict(
+            fps=fps, mode='I', format='FFMPEG', macro_block_size=1
+        )
 
-        # writer = imageio.get_writer(save_path, **imageio_mp4_cfg)
+        writer = imageio.get_writer(save_path, **imageio_mp4_cfg)
 
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
 
         # import ipdb;ipdb.set_trace()
-        writer = cv2.VideoWriter(save_path, fourcc, fps, (int(width), int(height)))
+        # writer = cv2.VideoWriter(save_path, fourcc, fps, (int(width), int(height)))
 
         bar = Bar("Rendering results ...", fill="#", max=len(val["frame_ids"]))
 
@@ -377,9 +377,9 @@ def run_vis_on_demo(
                 except:
                     img = np.concatenate((img, np.ones_like(img) * 255), axis=1)
 
-            # writer.append_data(img)
+            writer.append_data(img)
             # im_to_write.append(img)
-            writer.write(img)
+            # writer.write(img)
 
             # if save_ex:
             #     norm_im = tonp(normal_img)[...,::-1]
@@ -392,8 +392,8 @@ def run_vis_on_demo(
 
             bar.next()
             frame_i += 1
-        # writer.close()
-        writer.release()
+        writer.close()
+        # writer.release()
         # import ipdb;ipdb.set_trace()
         # imageio.mimwrite(save_path, im_to_write, fps=fps)
         print(f"\nsave_path: {save_path}")
