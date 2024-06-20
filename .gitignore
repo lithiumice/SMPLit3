@@ -237,3 +237,4 @@ data/
 !doc/*.jpg
 !doc/*.png
 model_files_part/
+wsl_scripts/

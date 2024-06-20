@@ -1,5 +1,5 @@
 conda activate smplit
-# export PYOPENGL_PLATFORM=osmesa
+export PYOPENGL_PLATFORM=osmesa
 cd /is/cluster/fast/hyi/workspace/VidGen/SMPLit3/
 
 python infer.py \

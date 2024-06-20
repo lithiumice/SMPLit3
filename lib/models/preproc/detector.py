@@ -573,6 +573,7 @@ class DetectionModel(object):
             self.cpm = MMPoseInferencer(
                 "td-hm_hrnet-w48_dark-8xb32-210e_coco-384x288", device=device
             )
+            # 
         else:
             # get face hands body kpts
             from lib.models.vitpose_model import ViTPoseModel
