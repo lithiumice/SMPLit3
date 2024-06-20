@@ -11,7 +11,8 @@ python infer.py \
 --use_smirk \
 --use_acr \
 --vis_kpts \
---output_pth output/boy_slickback_3s \
+--vitpose_model "mmpose" \
+--output_pth output/boy_slickback_3s2 \
 --video assets/boy_slickback_3s.mp4
 
 
