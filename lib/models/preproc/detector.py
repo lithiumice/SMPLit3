@@ -155,7 +155,7 @@ class Face_var_init_smirk:
         left, top, right, bottom = list(map(int, xyxy[:4]))
         image = img[top:bottom, left:right, :]
 
-        if not use_mp_det:
+        if not use_mp_det and "face_keyp" in pose_result:
             left, top, right, bottom = list(xyxy[:4])
             tmp = deepcopy(pose_result["face_keyp"])
             tmp[:, 0] -= left
@@ -569,11 +569,16 @@ class DetectionModel(object):
                 pip install "mmdet>=3.1.0"
             """
             from mmpose.apis import MMPoseInferencer
+            # self.cpm = MMPoseInferencer(
+            #     pose2d ="pretrained_weights/mmpose/rtmw-x_8xb704-270e_cocktail14-256x192.py",
+            #     pose2d_weights ="pretrained_weights/mmpose/rtmw-x_simcc-cocktail14_pt-ucoco_270e-256x192-13a2546d_20231208.pth",
+            #     device=device,
+            # )
             self.cpm = MMPoseInferencer(
-                pose2d ="pretrained_weights/mmpose/rtmw-x_8xb704-270e_cocktail14-256x192.py",
-                pose2d_weights ="pretrained_weights/mmpose/rtmw-x_simcc-cocktail14_pt-ucoco_270e-256x192-13a2546d_20231208.pth",
+                pose2d ="pretrained_weights/mmpose/rtmw-m_8xb1024-270e_cocktail14-256x192.py",
+                pose2d_weights ="pretrained_weights/mmpose/rtmw-dw-l-m_simcc-cocktail14_270e-256x192-20231122.pth",
                 device=device,
-            )
+            )            
         else:
             # get face hands body kpts
             from lib.models.vitpose_model import ViTPoseModel

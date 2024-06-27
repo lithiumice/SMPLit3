@@ -705,13 +705,16 @@ def run(
             res=kwargs["res"],
             return_full_pose=True,
         )
-        pred["verts_cam"] = opt_output.vertices
-        results[_id]["verts"] = (
-            (pred["verts_cam"] + pred["trans_cam"].unsqueeze(1)).cpu().numpy()
-        )
-        tmp = opt_output.full_pose.reshape(-1, 55, 3)[:, 25 : 25 + 30, :]
-        tmp = torch.stack([tmp[:, :15, :], tmp[:, 15:, :]], dim=1)
-        results[_id]["hand_pose"] = tonp(a2m(tmp))  # T,2,15,3,3
+        vis_smplx=False
+        if vis_smplx:
+            # use smplx vertices, not align with smpl
+            pred["verts_cam"] = opt_output.vertices
+
+        results[_id]['verts'] = (pred['verts_cam'] + pred['trans_cam'].unsqueeze(1)).cpu().numpy()
+            
+        hand_pose = opt_output.full_pose.reshape(-1, 55, 3)[:, 25 : 25 + 30, :]
+        hand_pose = torch.stack([hand_pose[:, :15, :], hand_pose[:, 15:, :]], dim=1)
+        results[_id]["hand_pose"] = tonp(a2m(hand_pose))  # T,2,15,3,3
         results[_id]["init_param_th"] = init_param_th
 
         # predict trajectory
@@ -823,7 +826,7 @@ def run(
             smplx,
             vis_global=run_global,
             stride=stride,
-            faces=smplx.faces,
+            faces=smplx.faces if vis_smplx else network.smpl.faces,
             save_prefix=args.save_prefix,
             save_ex=args.save_ex,
             args=args,

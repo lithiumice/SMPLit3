@@ -104,7 +104,6 @@ python infer.py \
 --visualize \
 --save_pkl \
 --est_hands \
---not_full_body \
 --use_smplx \
 --use_smirk \ # smrik的face
 --use_acr \ # ACR的hands
@@ -120,7 +119,6 @@ python infer.py \
 --visualize \
 --save_pkl \
 --est_hands \
---not_full_body \
 --use_hmr2 \ # 使用HMR2的body pose
 --use_smplx \
 --use_smirk \

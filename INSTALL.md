@@ -121,8 +121,10 @@ cp model_files/uhc_data/smpl/basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl ~/.cache
 download mmpose weight:
 ```bash
 mkdir -p pretrained_weights/mmpose
-wget "https://github.com/open-mmlab/mmpose/blob/main/configs/wholebody_2d_keypoint/rtmpose/cocktail14/rtmw-x_8xb704-270e_cocktail14-256x192.py" -O pretrained_weights/mmpose/rtmw-x_8xb704-270e_cocktail14-256x192.py
 wget "https://download.openmmlab.com/mmpose/v1/projects/rtmw/rtmw-x_simcc-cocktail14_pt-ucoco_270e-256x192-13a2546d_20231208.pth" -O pretrained_weights/mmpose/rtmw-x_simcc-cocktail14_pt-ucoco_270e-256x192-13a2546d_20231208.pth
+
+
+wget "https://download.openmmlab.com/mmpose/v1/projects/rtmw/rtmw-dw-l-m_simcc-cocktail14_270e-256x192-20231122.pth" -O pretrained_weights/mmpose/rtmw-dw-l-m_simcc-cocktail14_270e-256x192-20231122.pth
 
 ```
 

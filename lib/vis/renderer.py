@@ -310,13 +310,13 @@ class Renderer:
     def render_mesh(self, vertices, background, colors=[0.8, 0.8, 0.8]):
         self.update_bbox(vertices[::50], scale=1.2)
         vertices = vertices.unsqueeze(0)
+        # import ipdb;ipdb.set_trace()
 
         if False:
             if not hasattr(self, "verts_features"):
                 segm = "model_files/data_ipman/essentials/models_utils/smplx/smplx_parts_segm.pkl"
                 with open(segm, "rb") as file:
                     segm_data = pickle.load(file, encoding="latin1")
-                # import ipdb;ipdb.set_trace()
 
                 verts_features = torch.zeros((1, vertices.shape[1], 3)).type_as(
                     vertices
